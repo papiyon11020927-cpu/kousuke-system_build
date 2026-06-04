@@ -1,0 +1,31 @@
+# ── アプリ ──────────────────────────────────────
+app/node_modules/
+app/dist/
+app/.env.local
+app/.env.*.local
+app/*.tsbuildinfo
+
+# ── Functions ───────────────────────────────────
+functions/node_modules/
+functions/lib/
+
+# ── Firebase ローカルキャッシュ ──────────────────
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# ── バックアップ（ローカル専用）─────────────────
+backup_dist_*/
+backup_src_*/
+
+# ── Claude 設定（ローカル専用）──────────────────
+.claude/
+
+# ── プロトタイプ（任意：必要なら削除）───────────
+プロトタイプ/
+
+# ── OS / エディタ ────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json

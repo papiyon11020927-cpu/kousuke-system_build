@@ -1,0 +1,89 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─────────────────────────────────────────────────────────
+    // セットアップ状態確認用（未認証でも読み取り可）
+    // ログイン画面で「初回設定タブ」を表示するか判定するために使用
+    // ─────────────────────────────────────────────────────────
+    match /artifacts/{appId}/public/meta {
+      allow read:  if true;
+      allow write: if request.auth != null;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 業者見積依頼: 認証不要（UUIDトークンで保護）
+    // 外部業者がアカウント不要で回答フォームにアクセスするため
+    // ─────────────────────────────────────────────────────────
+    match /artifacts/{appId}/public/data/vendor_quote_requests/{docId} {
+      allow read, write: if true;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 外部業者マスタ: 取引基本契約の電子署名ページ（認証不要）
+    // ・公開署名URLから業者が契約内容を確認・署名するために読み取り許可
+    // ・署名保存（basicContract フィールド更新）も非認証で許可
+    // ─────────────────────────────────────────────────────────
+    match /artifacts/{appId}/public/data/vendors/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+      // 業者署名ページからの署名保存を許可（basicContract のみ更新前提）
+      allow update: if true;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 顧客向け契約書署名ページ（認証不要）
+    // ・公開署名URLからお客様が契約内容を確認・署名するために読み取り許可
+    // ・署名保存（customerSignature フィールド更新）も非認証で許可
+    // ─────────────────────────────────────────────────────────
+    match /artifacts/{appId}/public/data/contracts/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+      // 顧客署名ページからの署名保存を許可
+      allow update: if true;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 通知コレクション
+    // ・create: 認証不要（業者公開フォームからの通知作成を許可）
+    // ・read / update（既読）: 認証済みユーザーのみ
+    // ─────────────────────────────────────────────────────────
+    match /artifacts/{appId}/public/data/notifications/{docId} {
+      allow create: if true;
+      allow read, update: if request.auth != null;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // アプリデータ共通パス
+    // artifacts/{appId}/public/data/{collection}/{docId}
+    // ─────────────────────────────────────────────────────────
+    match /artifacts/{appId}/public/data/{collection}/{docId} {
+
+      // 認証済みユーザーは全データ読み取り可（一覧取得も含む）
+      allow read: if request.auth != null;
+
+      // ── users コレクション以外 ──────────────────────────────
+      // 認証済みユーザーは作成・更新・削除可
+      allow write: if request.auth != null && collection != 'users';
+
+      // ── users コレクション ──────────────────────────────────
+      // 【作成】
+      //   - 自分のドキュメントは作成可（初回セットアップ・既存ユーザー登録）
+      //   - 管理者は他ユーザーのドキュメントも作成可
+      allow create: if request.auth != null
+        && (docId == request.auth.uid || isAdmin(appId));
+
+      // 【更新・削除】管理者のみ可
+      allow update, delete: if request.auth != null && isAdmin(appId);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 管理者判定ヘルパー関数
+    // ─────────────────────────────────────────────────────────
+    function isAdmin(appId) {
+      let userDoc = /databases/$(database)/documents/artifacts/$(appId)/public/data/users/$(request.auth.uid);
+      return exists(userDoc) && get(userDoc).data.role == 'admin';
+    }
+  }
+}
