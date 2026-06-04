@@ -1931,14 +1931,16 @@ const VQ_STATUS_COLOR: Record<VendorQuoteRequest['status'], string> = {
 // VendorQuotePanel: memo 化・CreateVendorQuoteDialog は EstimateManageModal 直下に移動済み
 const VendorQuotePanel = memo(function VendorQuotePanel({
   project, vendors, vendorQuoteRequests,
-  currentUserName, onRequestCreate, onShowToast,
+  currentUserName, onRequestCreate, onShowToast, onOpenCreateEstimate,
 }: {
-  project:              Project;
-  vendors:              Vendor[];
-  vendorQuoteRequests:  VendorQuoteRequest[];
-  currentUserName:      string;
-  onRequestCreate:      () => void;
-  onShowToast:          (msg: string) => void;
+  project:                  Project;
+  vendors:                  Vendor[];
+  vendorQuoteRequests:      VendorQuoteRequest[];
+  currentUserName:          string;
+  onRequestCreate:          () => void;
+  onShowToast:              (msg: string) => void;
+  /** 採用済み業者見積を見積書原価に取込む — 見積タブを開いて作成ダイアログを起動 */
+  onOpenCreateEstimate?:    () => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copying,    setCopying]    = useState<string | null>(null);
@@ -2158,9 +2160,19 @@ const VendorQuotePanel = memo(function VendorQuotePanel({
                         </>
                       )}
                       {req.status === 'accepted' && (
-                        <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-                          <LucideCheck size={11} /> 採用済み — 見積書作成時に原価として参照できます
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                            <LucideCheck size={11} /> 採用済み
+                          </span>
+                          {onOpenCreateEstimate && (
+                            <button
+                              onClick={onOpenCreateEstimate}
+                              className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-900/40 text-emerald-300 hover:bg-emerald-800/60 transition-colors border border-emerald-700/40"
+                            >
+                              <LucideChevronRight size={11} /> 見積書の原価に取込む
+                            </button>
+                          )}
+                        </div>
                       )}
                       <button
                         onClick={() => handleDelete(req.requestId)}
@@ -2679,7 +2691,12 @@ function EstimateManageModal({
   const sortedEstimates = [...estimates].sort((a, b) => b.version - a.version);
   const maxVersion      = estimates.length ? Math.max(...estimates.map(e => e.version)) : 0;
   const pendingCount    = estimates.filter(e => e.approvalStatus === 'pending_approval').length;
-  const vqPendingCount  = vendorQuoteRequests.filter(r => r.status === 'pending').length;
+  // ★ この案件の業者見積のみに絞る（他案件の見積が混入しないよう projectId でフィルタ）
+  const projectVendorQuotes = useMemo(
+    () => vendorQuoteRequests.filter(r => r.projectId === project.projectId),
+    [vendorQuoteRequests, project.projectId],
+  );
+  const vqPendingCount  = projectVendorQuotes.filter(r => r.status === 'pending').length;
   const activeVendors   = useMemo(() => vendors.filter(v => v.status === 'active'), [vendors]);
 
   // ── 埋め込みモード用の共通パーツを変数化 ──────────────────────────
@@ -2692,7 +2709,7 @@ function EstimateManageModal({
       </button>
       <button onClick={() => setActiveTab('vendor_quotes')}
         className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold transition-colors ${activeTab === 'vendor_quotes' ? 'text-[#E6C687] border-b-2 border-[#C5A059] bg-[#C5A059]/5' : 'text-gray-400 hover:text-white'}`}>
-        <LucideBuilding2 size={12} /> 業者見積依頼 ({vendorQuoteRequests.length})
+        <LucideBuilding2 size={12} /> 業者見積依頼 ({projectVendorQuotes.length})
         {vqPendingCount > 0 && <span className="ml-1 bg-orange-900/60 text-orange-300 text-[9px] px-1.5 py-0.5 rounded-full">{vqPendingCount}</span>}
       </button>
     </div>
@@ -2721,8 +2738,9 @@ function EstimateManageModal({
         </>
       )}
       {activeTab === 'vendor_quotes' && (
-        <VendorQuotePanel project={project} vendors={vendors} vendorQuoteRequests={vendorQuoteRequests}
-          currentUserName={currentUserName} onRequestCreate={() => setShowCreateVQ(true)} onShowToast={onShowToast} />
+        <VendorQuotePanel project={project} vendors={vendors} vendorQuoteRequests={projectVendorQuotes}
+          currentUserName={currentUserName} onRequestCreate={() => setShowCreateVQ(true)} onShowToast={onShowToast}
+          onOpenCreateEstimate={() => { setActiveTab('estimates'); setShowCreate(true); }} />
       )}
     </div>
   );
@@ -2737,7 +2755,7 @@ function EstimateManageModal({
         {showCreate && (
           <CreateEstimateDialog project={project} customer={customer} existingVersion={maxVersion}
             createdBy={currentUserName} estimateTemplates={estimateTemplates} vendors={vendors}
-            vendorQuoteRequests={vendorQuoteRequests}
+            vendorQuoteRequests={projectVendorQuotes}
             onClose={() => setShowCreate(false)} onCreated={msg => { onShowToast(msg); setShowCreate(false); }} />
         )}
       </div>
@@ -2745,7 +2763,7 @@ function EstimateManageModal({
         {editingEstimate && (
           <CreateEstimateDialog project={project} customer={customer} existingVersion={editingEstimate.version}
             createdBy={currentUserName} estimateTemplates={estimateTemplates} vendors={vendors}
-            vendorQuoteRequests={vendorQuoteRequests}
+            vendorQuoteRequests={projectVendorQuotes}
             onClose={() => setEditingEstimate(null)} onCreated={msg => { onShowToast(msg); setEditingEstimate(null); }}
             existingEstimate={editingEstimate} />
         )}
@@ -2802,7 +2820,7 @@ function EstimateManageModal({
                 : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800 border border-transparent'
             }`}
           >
-            <LucideBuilding2 size={11} /> 業者依頼 ({vendorQuoteRequests.length})
+            <LucideBuilding2 size={11} /> 業者依頼 ({projectVendorQuotes.length})
             {vqPendingCount > 0 && (
               <span className="ml-1 bg-orange-900/60 text-orange-300 text-[9px] px-1.5 py-0.5 rounded-full">
                 {vqPendingCount}
@@ -2853,10 +2871,11 @@ function EstimateManageModal({
             <VendorQuotePanel
               project={project}
               vendors={vendors}
-              vendorQuoteRequests={vendorQuoteRequests}
+              vendorQuoteRequests={projectVendorQuotes}
               currentUserName={currentUserName}
               onRequestCreate={() => setShowCreateVQ(true)}
               onShowToast={onShowToast}
+              onOpenCreateEstimate={() => { setActiveTab('estimates'); setShowCreate(true); }}
             />
           )}
         </div>
@@ -2883,7 +2902,7 @@ function EstimateManageModal({
             createdBy={currentUserName}
             estimateTemplates={estimateTemplates}
             vendors={vendors}
-            vendorQuoteRequests={vendorQuoteRequests}
+            vendorQuoteRequests={projectVendorQuotes}
             onClose={() => setShowCreate(false)}
             onCreated={msg => { onShowToast(msg); setShowCreate(false); }}
           />
@@ -2898,7 +2917,7 @@ function EstimateManageModal({
             createdBy={currentUserName}
             estimateTemplates={estimateTemplates}
             vendors={vendors}
-            vendorQuoteRequests={vendorQuoteRequests}
+            vendorQuoteRequests={projectVendorQuotes}
             onClose={() => setEditingEstimate(null)}
             onCreated={msg => { onShowToast(msg); setEditingEstimate(null); }}
             existingEstimate={editingEstimate}
