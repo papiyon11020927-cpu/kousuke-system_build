@@ -1043,7 +1043,10 @@ function CreateEstimateDialog({
   const [loading,         setLoading]         = useState(false);
   const [error,           setError]           = useState('');
   const [showTplPicker,   setShowTplPicker]   = useState(false);
-  const [showCost,        setShowCost]        = useState(() => (existingEstimate?.vendorCosts?.length ?? 0) > 0);
+  const [showCost,        setShowCost]        = useState(() =>
+    (existingEstimate?.vendorCosts?.length ?? 0) > 0 ||
+    acceptedVendorQuotes.length > 0   // 採用済み業者見積があれば自動展開
+  );
   const [vendorCosts,     setVendorCosts]     = useState<VendorCostEntry[]>(() => existingEstimate?.vendorCosts ?? []);
 
   const addVendorCost = () => setVendorCosts(prev => [...prev, {
@@ -1332,6 +1335,12 @@ function CreateEstimateDialog({
               <span className="flex items-center gap-2 font-bold text-gray-300">
                 <LucideTrendingUp size={12} className="text-[#C5A059]" />
                 原価・粗利入力（任意）
+                {/* 採用済み業者見積が引用可能なときバッジ表示 */}
+                {acceptedVendorQuotes.length > 0 && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 border border-emerald-700/40">
+                    業者見積 {acceptedVendorQuotes.length}件 引用可
+                  </span>
+                )}
               </span>
               <span className="flex items-center gap-3">
                 {(() => {
