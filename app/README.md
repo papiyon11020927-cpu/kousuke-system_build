@@ -71,3 +71,5 @@ export default defineConfig([
   },
 ])
 ```
+
+<!-- CI test: 2026-06-04 09:51 -->
