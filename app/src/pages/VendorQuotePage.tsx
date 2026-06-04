@@ -17,33 +17,49 @@ import {
   LucidePlus, LucideTrash2, LucideClipboardList,
   LucideFileText, LucideUpload, LucideSparkles, LucideX,
   LucideCalendar, LucideRotateCcw, LucideImage, LucideCamera, LucideCheck,
+  LucidePaperclip,
 } from 'lucide-react';
 import type { VendorQuoteRequest, VendorQuoteItem } from '@/types';
 import {
   getVendorQuoteByToken, submitVendorQuote, uploadVendorQuotePdf,
   submitCompletionReport,
 } from '@/services/vendorQuoteService';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/firebase/config';
 
-/** 写真圧縮（業者側フォームでも同じロジックを利用） */
-async function compressVendorPhoto(file: File, maxWidth = 800, quality = 0.65): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const scale  = Math.min(1, maxWidth / img.width);
-        const canvas = document.createElement('canvas');
-        canvas.width  = Math.round(img.width  * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.src = e.target!.result as string;
+/** 写真を WebP に圧縮して Firebase Storage にアップロード → URL を返す */
+async function uploadCompletionPhoto(file: File, requestId: string, idx: number): Promise<string> {
+  // 1. Canvas で WebP 圧縮（max 1280px, quality 0.75）
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onerror = reject;
+    img.onload = () => {
+      const MAX_W = 1280;
+      const scale = Math.min(1, MAX_W / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(b => {
+        URL.revokeObjectURL(url);
+        b ? resolve(b) : reject(new Error('toBlob failed'));
+      }, 'image/webp', 0.75);
     };
-    reader.readAsDataURL(file);
+    img.src = url;
   });
+  // 2. Storage にアップロード
+  const storageRef = ref(storage, `completion-reports/${requestId}/photo_${idx}_${Date.now()}.webp`);
+  await uploadBytes(storageRef, blob, { contentType: 'image/webp' });
+  return getDownloadURL(storageRef);
+}
+
+/** PDF を Firebase Storage にアップロード → URL を返す */
+async function uploadCompletionDoc(file: File, requestId: string): Promise<{ name: string; url: string; sizeMb: number }> {
+  const storageRef = ref(storage, `completion-reports/${requestId}/doc_${Date.now()}_${file.name}`);
+  await uploadBytes(storageRef, file, { contentType: 'application/pdf' });
+  const url = await getDownloadURL(storageRef);
+  return { name: file.name, url, sizeMb: Math.round(file.size / 1024 / 1024 * 10) / 10 };
 }
 
 // ─── Gemini OCR（スキャン画像・写真専用） ─────────────────────
@@ -327,9 +343,11 @@ export default function VendorQuotePage({ token }: Props) {
   } | null>(null);
 
   // ─── 完了報告書フォーム（status=accepted の業者向け） ────────
-  const [reportPhotos,    setReportPhotos]    = useState<string[]>([]);
-  const [reportNotes,     setReportNotes]     = useState('');
+  const [reportPhotoFiles, setReportPhotoFiles] = useState<{ file: File; preview: string }[]>([]);
+  const [reportDocs,       setReportDocs]       = useState<File[]>([]);
+  const [reportNotes,      setReportNotes]      = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportUploadProgress, setReportUploadProgress] = useState('');
   const [reportSubmitted,  setReportSubmitted]  = useState(false);
   const [reportError,      setReportError]      = useState('');
 
@@ -543,15 +561,27 @@ export default function VendorQuotePage({ token }: Props) {
 
     // 完了報告書の送信ハンドラ
     const handleSubmitReport = async () => {
-      if (!reportNotes.trim() && reportPhotos.length === 0) {
+      if (!reportNotes.trim() && reportPhotoFiles.length === 0) {
         setReportError('写真またはメモを入力してください');
         return;
       }
       setReportSubmitting(true);
       setReportError('');
       try {
+        // 写真を圧縮してアップロード
+        setReportUploadProgress('写真をアップロード中...');
+        const photoUrls = await Promise.all(
+          reportPhotoFiles.map((p, i) => uploadCompletionPhoto(p.file, request.requestId, i))
+        );
+        // PDF をアップロード
+        setReportUploadProgress('書類をアップロード中...');
+        const docUrls = await Promise.all(
+          reportDocs.map(f => uploadCompletionDoc(f, request.requestId))
+        );
+        setReportUploadProgress('送信中...');
         await submitCompletionReport(request.requestId, {
-          photos:       reportPhotos,
+          photoUrls,
+          docUrls,
           notes:        reportNotes,
           submittedAt:  new Date().toISOString(),
           submittedVia: 'vendor',
@@ -561,15 +591,24 @@ export default function VendorQuotePage({ token }: Props) {
         setReportError('送信に失敗しました。時間をおいて再度お試しください。');
       } finally {
         setReportSubmitting(false);
+        setReportUploadProgress('');
       }
     };
 
-    const addReportPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? []).slice(0, 3);
-      try {
-        const compressed = await Promise.all(files.map(f => compressVendorPhoto(f)));
-        setReportPhotos(prev => [...prev, ...compressed].slice(0, 3));
-      } catch { /* ignore */ }
+    const addReportPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      const previews = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+      setReportPhotoFiles(prev => [...prev, ...previews].slice(0, 8));
+      e.target.value = '';
+    };
+
+    const addReportDoc = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []).filter(f => f.type === 'application/pdf');
+      if (files.some(f => f.size > 8 * 1024 * 1024)) {
+        setReportError('PDFは8MB以内にしてください');
+        return;
+      }
+      setReportDocs(prev => [...prev, ...files].slice(0, 3));
       e.target.value = '';
     };
 
@@ -635,22 +674,65 @@ export default function VendorQuotePage({ token }: Props) {
                 </p>
               </div>
 
-              {/* 写真アップロード */}
-              <div>
-                <label className="flex items-center gap-2 text-sm text-[#C5A059] cursor-pointer hover:text-[#E6C687] transition-colors font-medium">
-                  <LucideCamera size={16} />
-                  現場写真を追加する（最大3枚）
-                  <input type="file" accept="image/*" capture="environment" multiple className="hidden"
-                    onChange={addReportPhoto} />
-                </label>
-                {reportPhotos.length > 0 && (
-                  <div className="flex gap-2 flex-wrap mt-3">
-                    {reportPhotos.map((p, pi) => (
-                      <div key={pi} className="relative">
-                        <img src={p} alt="" className="h-20 w-20 object-cover rounded-lg border border-gray-700" />
-                        <button onClick={() => setReportPhotos(prev => prev.filter((_, i) => i !== pi))}
-                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold">
+              {/* 現場写真 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-[#C5A059] flex items-center gap-1.5">
+                    <LucideCamera size={14} /> 現場写真
+                    <span className="text-[10px] text-gray-500 font-normal">（最大8枚・自動圧縮）</span>
+                  </span>
+                  {reportPhotoFiles.length < 8 && (
+                    <label className="cursor-pointer text-xs text-[#C5A059] hover:text-[#E6C687] border border-[#C5A059]/40 px-2.5 py-1 rounded-lg transition-colors">
+                      ＋ 写真を追加
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={addReportPhoto} />
+                    </label>
+                  )}
+                </div>
+                {reportPhotoFiles.length > 0 ? (
+                  <div className="grid grid-cols-4 gap-2">
+                    {reportPhotoFiles.map((p, pi) => (
+                      <div key={pi} className="relative aspect-square">
+                        <img src={p.preview} alt="" className="h-full w-full object-cover rounded-lg border border-gray-700" />
+                        <button onClick={() => setReportPhotoFiles(prev => prev.filter((_, i) => i !== pi))}
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold shadow">
                           ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center gap-2 py-6 border border-dashed border-gray-700 rounded-lg cursor-pointer hover:border-[#C5A059]/50 transition-colors">
+                    <LucideImage size={24} className="text-gray-600" />
+                    <span className="text-xs text-gray-500">タップして写真を選択</span>
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={addReportPhoto} />
+                  </label>
+                )}
+              </div>
+
+              {/* 書類添付（PDF） */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-400 flex items-center gap-1.5">
+                    <LucidePaperclip size={14} /> 書類添付
+                    <span className="text-[10px] text-gray-500 font-normal">（PDF・最大3ファイル・8MB以内）</span>
+                  </span>
+                  {reportDocs.length < 3 && (
+                    <label className="cursor-pointer text-xs text-blue-400 hover:text-blue-300 border border-blue-700/40 px-2.5 py-1 rounded-lg transition-colors">
+                      ＋ PDF を追加
+                      <input type="file" accept="application/pdf" multiple className="hidden" onChange={addReportDoc} />
+                    </label>
+                  )}
+                </div>
+                {reportDocs.length > 0 && (
+                  <div className="space-y-1.5">
+                    {reportDocs.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-blue-950/20 border border-blue-700/30 rounded-lg px-3 py-2">
+                        <LucideFileText size={14} className="text-blue-400 shrink-0" />
+                        <span className="flex-1 text-xs text-white truncate">{f.name}</span>
+                        <span className="text-[10px] text-gray-500 shrink-0">{(f.size/1024/1024).toFixed(1)}MB</span>
+                        <button onClick={() => setReportDocs(prev => prev.filter((_, j) => j !== i))}
+                          className="text-gray-500 hover:text-red-400 transition-colors">
+                          <LucideX size={12} />
                         </button>
                       </div>
                     ))}
@@ -682,7 +764,7 @@ export default function VendorQuotePage({ token }: Props) {
                 className="w-full bg-[#C5A059] hover:bg-[#E6C687] text-[#0A0F1D] font-bold py-3 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
               >
                 {reportSubmitting
-                  ? <><LucideActivity size={14} className="animate-spin" /> 送信中...</>
+                  ? <><LucideActivity size={14} className="animate-spin" /> {reportUploadProgress || '送信中...'}</>
                   : <><LucideCheck size={14} /> 工事完了報告書を提出する</>
                 }
               </button>

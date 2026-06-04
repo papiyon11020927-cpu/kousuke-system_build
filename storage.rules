@@ -5,14 +5,21 @@ service firebase.storage {
 
     // ─────────────────────────────────────────────────────────
     // 業者見積PDF（認証不要・公開アップロード）
-    // トークンベースのアクセス制御はアプリ側で担保
     // ─────────────────────────────────────────────────────────
     match /vendor-quotes/{requestId}/{filename} {
-      // 業者（非認証）からのPDFアップロードを許可（10MB 以内）
       allow write: if request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType == 'application/pdf';
-      // getDownloadURL は未認証業者からも呼び出すため read: true
-      // （ダウンロードURLにはFirebase発行のアクセストークンが含まれ、URLを知る人のみアクセス可）
+      allow read: if true;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 工事完了報告書（写真・PDF）— 業者は非認証でアップロード可
+    // ─────────────────────────────────────────────────────────
+    match /completion-reports/{requestId}/{filename} {
+      // 8MB 以内の画像 or PDF のみ許可
+      allow write: if request.resource.size < 8 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType == 'application/pdf');
       allow read: if true;
     }
 

@@ -167,7 +167,13 @@ export const saveVendorReceiptSignature = async (
 // ─── 工事完了報告書の記録（業者 or スタッフ代理） ────────────
 export const submitCompletionReport = async (
   requestId: string,
-  report: { photos: string[]; notes: string; submittedAt: string; submittedVia: 'vendor' | 'staff' },
+  report: {
+    photoUrls:    string[];
+    docUrls:      { name: string; url: string; sizeMb: number }[];
+    notes:        string;
+    submittedAt:  string;
+    submittedVia: 'vendor' | 'staff';
+  },
 ): Promise<void> => {
   await updateDoc(docRef(requestId), {
     completionReport: report,

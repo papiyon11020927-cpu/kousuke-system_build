@@ -201,7 +201,9 @@ export default function VendorWorkflowCard({
     setLoading(true);
     try {
       await submitCompletionReport(vq.requestId, {
-        photos: reportPhotos, notes: reportNotes,
+        photoUrls: reportPhotos, // スタッフ代理は base64 でも可（簡易）
+        docUrls: [],
+        notes: reportNotes,
         submittedAt: new Date().toISOString(), submittedVia: 'staff',
       });
       onShowToast('完了報告書を記録しました');
@@ -339,10 +341,26 @@ export default function VendorWorkflowCard({
                       {vq.completionReport.notes && (
                         <p className="text-[11px] text-gray-300 bg-gray-900/50 rounded-lg px-3 py-2">{vq.completionReport.notes}</p>
                       )}
-                      {vq.completionReport.photos.length > 0 && (
-                        <div className="flex gap-2 flex-wrap">
-                          {vq.completionReport.photos.map((p, pi) => (
-                            <img key={pi} src={p} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-700" />
+                      {/* 現場写真 */}
+                      {(vq.completionReport.photoUrls?.length ?? 0) > 0 && (
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {vq.completionReport.photoUrls!.map((url, pi) => (
+                            <a key={pi} href={url} target="_blank" rel="noopener noreferrer">
+                              <img src={url} alt="" className="h-16 w-full object-cover rounded-lg border border-gray-700 hover:opacity-80 transition-opacity" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      {/* 添付書類 */}
+                      {(vq.completionReport.docUrls?.length ?? 0) > 0 && (
+                        <div className="space-y-1">
+                          {vq.completionReport.docUrls!.map((doc, di) => (
+                            <a key={di} href={doc.url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-2 bg-blue-950/20 border border-blue-700/30 rounded-lg px-3 py-1.5 hover:border-blue-500/50 transition-colors">
+                              <LucideFileText size={12} className="text-blue-400 shrink-0" />
+                              <span className="flex-1 text-[11px] text-white truncate">{doc.name}</span>
+                              <span className="text-[10px] text-gray-500 shrink-0">{doc.sizeMb}MB</span>
+                            </a>
                           ))}
                         </div>
                       )}

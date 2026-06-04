@@ -361,7 +361,8 @@ export interface VendorQuoteRequest {
   vendorReceiptSignedAt?:   string;   // 受領署名日時 ISO
   // ── 精算ワークフロー（工事完了 → 検収 → 請求 → 支払） ──
   completionReport?: {
-    photos:       string[];           // base64 JPEG（圧縮済み）
+    photoUrls:    string[];           // Firebase Storage URLs（WebP 圧縮済み）
+    docUrls:      { name: string; url: string; sizeMb: number }[];  // 添付PDF
     notes:        string;
     submittedAt:  string;             // ISO 8601
     submittedVia: 'vendor' | 'staff'; // 業者提出 or スタッフ代理記録
