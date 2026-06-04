@@ -4,6 +4,7 @@ app/dist/
 app/.env.local
 app/.env.*.local
 app/*.tsbuildinfo
+app/package-lock.json
 
 # ── Functions ───────────────────────────────────
 functions/node_modules/
