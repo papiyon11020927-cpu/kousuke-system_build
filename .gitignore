@@ -30,3 +30,6 @@ backup_src_*/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# コピーファイル
+*- コピー.*
