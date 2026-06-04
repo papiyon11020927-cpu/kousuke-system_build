@@ -22,7 +22,7 @@ jobs:
 
       - name: 依存パッケージインストール
         working-directory: app
-        run: npm ci
+        run: npm install
 
       - name: TypeScript チェック & ビルド
         working-directory: app
