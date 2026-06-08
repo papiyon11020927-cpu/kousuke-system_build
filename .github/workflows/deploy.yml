@@ -5,6 +5,9 @@ on:
     branches:
       - main   # main ブランチへの push で自動実行
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'   # Node.js 24 対応（2026/6/16 移行前に対応）
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest   # Linux 環境（Windows スタック問題なし）
@@ -43,6 +46,7 @@ jobs:
       - name: Cloud Functions ビルド
         working-directory: functions
         run: |
+          rm -f package-lock.json
           npm install
           npm run build
 
