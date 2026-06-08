@@ -40,5 +40,5 @@ jobs:
       - name: Firebase CLI インストール
         run: npm install -g firebase-tools
 
-      - name: Firebase にデプロイ（Hosting + Storage ルール）
-        run: firebase deploy --only hosting,storage --token ${{ secrets.FIREBASE_TOKEN }}
+      - name: Firebase にデプロイ（Hosting + Storage + Firestore ルール）
+        run: firebase deploy --only hosting,storage,firestore:rules --token ${{ secrets.FIREBASE_TOKEN }}

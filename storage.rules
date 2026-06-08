@@ -4,23 +4,26 @@ service firebase.storage {
   match /b/{bucket}/o {
 
     // ─────────────────────────────────────────────────────────
-    // 業者見積PDF（認証不要・公開アップロード）
+    // 業者見積PDF
+    // ・write: 非認証可（業者が回答PDFをアップロード）、10MB/PDF限定
+    // ・read:  認証済みのみ（URLを知っていても未認証では取得不可）
     // ─────────────────────────────────────────────────────────
     match /vendor-quotes/{requestId}/{filename} {
       allow write: if request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType == 'application/pdf';
-      allow read: if true;
+      allow read: if request.auth != null;
     }
 
     // ─────────────────────────────────────────────────────────
-    // 工事完了報告書（写真・PDF）— 業者は非認証でアップロード可
+    // 工事完了報告書（写真・PDF）
+    // ・write: 非認証可（業者がアップロード）、8MB/画像orPDF限定
+    // ・read:  認証済みのみ
     // ─────────────────────────────────────────────────────────
     match /completion-reports/{requestId}/{filename} {
-      // 8MB 以内の画像 or PDF のみ許可
       allow write: if request.resource.size < 8 * 1024 * 1024
         && (request.resource.contentType.matches('image/.*')
             || request.resource.contentType == 'application/pdf');
-      allow read: if true;
+      allow read: if request.auth != null;
     }
 
     // ─────────────────────────────────────────────────────────
