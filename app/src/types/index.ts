@@ -44,7 +44,7 @@ export interface Project {
   budgetAmount?: number;   // 顧客予算金額
   deadline?: string;       // 希望納期 (YYYY-MM-DD)
   issue?: string;          // 顧客課題メモ
-  probability?: number;    // 見込み度 0–100 (%)
+  probability?: number;    // 確度 0–100 (%)
   notes?: string;          // 備考
   lostReason?: string;     // 失注理由（ステータス失注時に記録）
   // ── 複数担当者 ──

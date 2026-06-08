@@ -624,6 +624,13 @@ function AddProjectDialog({
   const [error,        setError]        = useState('');
   const [showPicker,   setShowPicker]   = useState(false);
 
+  // 契約以降のステータスは確度を 100% に自動更新
+  useEffect(() => {
+    if (['contract', 'construction', 'completed', 'settlement', 'closed'].includes(status)) {
+      setProbability('100');
+    }
+  }, [status]);
+
   const primaryAssignee = assignees[0]?.name ?? '';
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -739,10 +746,10 @@ function AddProjectDialog({
               </div>
             </div>
 
-            {/* 見込み度 */}
+            {/* 確度 */}
             <div>
               <label className="text-xs text-gray-400 block mb-1 flex items-center gap-1">
-                <LucidePercent size={11} /> 見込み度: <span className="text-white font-bold ml-1">{probability}%</span>
+                <LucidePercent size={11} /> 確度: <span className="text-white font-bold ml-1">{probability}%</span>
               </label>
               <input type="range" min="0" max="100" step="5"
                 value={probability} onChange={e => setProbability(e.target.value)}
@@ -854,6 +861,13 @@ function EditProjectDialog({
   const [notes,        setNotes]        = useState(project.notes || '');
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
+
+  // 契約以降のステータスは確度を 100% に自動更新
+  useEffect(() => {
+    if (['contract', 'construction', 'completed', 'settlement', 'closed'].includes(status)) {
+      setProbability('100');
+    }
+  }, [status]);
   const [showPicker,   setShowPicker]   = useState(false);
 
   const primaryAssignee = assignees[0]?.name ?? project.assignee ?? '';
@@ -926,7 +940,7 @@ function EditProjectDialog({
 
           <div>
             <label className="text-xs text-gray-400 flex items-center gap-1 mb-1">
-              <LucidePercent size={11} /> 見込み度: <span className="text-white font-bold ml-1">{probability}%</span>
+              <LucidePercent size={11} /> 確度: <span className="text-white font-bold ml-1">{probability}%</span>
             </label>
             <input type="range" min="0" max="100" step="5"
               value={probability} onChange={e => setProbability(e.target.value)}

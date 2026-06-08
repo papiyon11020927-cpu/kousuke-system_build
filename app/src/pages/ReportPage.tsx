@@ -55,6 +55,13 @@ function PostSaveProjectUpdate({
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState('');
 
+  // 契約以降のステータスは確度を 100% に自動更新
+  useEffect(() => {
+    if (['contract', 'construction', 'completed', 'settlement', 'closed'].includes(status)) {
+      setProbability('100');
+    }
+  }, [status]);
+
   const handleSave = async () => {
     setLoading(true);
     setError('');
@@ -97,10 +104,10 @@ function PostSaveProjectUpdate({
         </div>
       </div>
 
-      {/* 見込み度 */}
+      {/* 確度 */}
       <div>
         <label className="text-xs text-gray-400 block mb-1">
-          見込み度: <span className="text-white font-bold">{probability}%</span>
+          確度: <span className="text-white font-bold">{probability}%</span>
         </label>
         <input type="range" min="0" max="100" step="5"
           value={probability} onChange={e => setProbability(e.target.value)}

@@ -15,12 +15,18 @@ export const saveProject = async (project: Project): Promise<void> => {
   }));
 };
 
+/** 契約以降のステータスは確度を 100% に自動更新する */
+const CONTRACT_AND_BEYOND: ProjectStatus[] = [
+  'contract', 'construction', 'completed', 'settlement', 'closed',
+];
+
 export const updateProjectStatus = async (
   projectId: string,
   status: ProjectStatus,
 ): Promise<void> => {
   const now = new Date().toISOString();
-  await updateDoc(ref(projectId), { status, lastActivityAt: now, updatedAt: now });
+  const extra = CONTRACT_AND_BEYOND.includes(status) ? { probability: 100 } : {};
+  await updateDoc(ref(projectId), { status, lastActivityAt: now, updatedAt: now, ...extra });
 };
 
 export const touchLastActivity = async (projectId: string): Promise<void> => {
