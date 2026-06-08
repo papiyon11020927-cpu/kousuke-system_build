@@ -5,19 +5,16 @@ on:
     branches:
       - main   # main ブランチへの push で自動実行
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'   # Node.js 24 対応（2026/6/16 移行前に対応）
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest   # Linux 環境（Windows スタック問題なし）
 
     steps:
       - name: コードを取得
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5   # Node.js 24 対応版
 
       - name: Node.js セットアップ
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6  # Node.js 24 対応版
         with:
           node-version: '22'
 
