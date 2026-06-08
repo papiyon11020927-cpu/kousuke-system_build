@@ -15,15 +15,15 @@ import {
 } from './DatabasePage';
 
 // ─────────────────────────────────────────────────────────────
-// ステータス優先順（左パネルリストの並び順）
+// ステータス優先順（左パネルリストの並び順 = 業務フロー順）
 // ─────────────────────────────────────────────────────────────
 const STATUS_PRIORITY: Record<ProjectStatus, number> = {
-  construction: 0,
-  settlement:   1,
+  lead:         0,
+  estimate:     1,
   contract:     2,
-  estimate:     3,
-  lead:         4,
-  completed:    5,
+  construction: 3,
+  completed:    4,
+  settlement:   5,
   closed:       6,
   lost:         7,
 };
@@ -32,7 +32,7 @@ const ALL_STATUSES: ProjectStatus[] = [
   'lead', 'estimate', 'contract', 'construction', 'completed', 'settlement', 'closed', 'lost',
 ];
 
-/** 'active' = 完工以外の全ステータス（初期フィルタ用） */
+/** 'active' = クローズ・失注以外の全ステータス（初期フィルタ用） */
 type StatusFilter = ProjectStatus | 'all' | 'active';
 
 // ─────────────────────────────────────────────────────────────
@@ -141,8 +141,8 @@ export default function WorkspacePage({
     const q = searchText.toLowerCase();
     return [...myProjects]
       .filter(p => {
-        // ステータスフィルタ（'active' = 完工・失注以外）
-        if (statusFilter === 'active' && (p.status === 'completed' || p.status === 'lost')) return false;
+        // ステータスフィルタ（'active' = クローズ・失注以外）
+        if (statusFilter === 'active' && (p.status === 'closed' || p.status === 'lost')) return false;
         if (statusFilter !== 'all' && statusFilter !== 'active' && p.status !== statusFilter) return false;
         // テキスト検索
         if (!q) return true;
@@ -203,7 +203,7 @@ export default function WorkspacePage({
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
             }`}
           >
-            進行中 ({myProjects.filter(p => p.status !== 'completed' && p.status !== 'lost').length})
+            進行中 ({myProjects.filter(p => p.status !== 'closed' && p.status !== 'lost').length})
           </button>
           {/* 全て */}
           <button

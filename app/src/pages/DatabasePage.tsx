@@ -61,10 +61,10 @@ export const STATUS_LABEL: Record<ProjectStatus, string> = {
   lead:         '引き合い',
   estimate:     '見積提出',
   contract:     '契約済',
-  settlement:   '精算中',
-  closed:       'クローズ',
   construction: '施工中',
   completed:    '完工',
+  settlement:   '精算中',
+  closed:       'クローズ',
   lost:         '失注',
 };
 
@@ -72,10 +72,10 @@ export const STATUS_COLOR: Record<ProjectStatus, string> = {
   lead:         'bg-gray-700 text-gray-300',
   estimate:     'bg-yellow-900/60 text-yellow-300',
   contract:     'bg-blue-900/60 text-blue-300',
-  settlement:   'bg-violet-900/60 text-violet-300',
-  closed:       'bg-teal-900/60 text-teal-300',
   construction: 'bg-emerald-900/60 text-emerald-300',
   completed:    'bg-gray-800 text-gray-400',
+  settlement:   'bg-violet-900/60 text-violet-300',
+  closed:       'bg-teal-900/60 text-teal-300',
   lost:         'bg-red-900/40 text-red-400',
 };
 
