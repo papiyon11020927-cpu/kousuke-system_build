@@ -48,4 +48,5 @@ jobs:
           npm run build
 
       - name: Firebase にデプロイ（Hosting + Storage + Firestore ルール + Functions）
-        run: firebase deploy --only hosting,storage,firestore:rules,functions --token ${{ secrets.FIREBASE_TOKEN }}
+        run: firebase deploy --only hosting,storage,firestore:rules,functions --force --token ${{ secrets.FIREBASE_TOKEN }}
+        # --force: Artifact Registry のクリーンアップポリシーを自動設定
