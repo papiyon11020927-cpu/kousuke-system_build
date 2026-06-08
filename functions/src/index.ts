@@ -3,10 +3,13 @@
  *
  * ── 含まれる関数 ──────────────────────────────────────────────────
  * 1. onNotificationCreated  — Firestore通知作成時にメール送信
+ * 2. analyzeVendorDoc       — 業者見積書OCR（Gemini・認証不要）
+ * 3. geminiAnalyzeReport    — 音声日報解析（Gemini・認証必須）
+ * 4. geminiDailySummary     — 日報サマリー生成（Gemini・認証必須）
  *
- * ── 画像OCR について ─────────────────────────────────────────────
- * Gemini OCR はフロントエンドから直接呼び出します（Cloud Functions 不要）。
- * APIキーは .env.local の VITE_GEMINI_API_KEY を参照します。
+ * ── Gemini APIキー設定（初回のみ実行） ───────────────────────────
+ * firebase functions:secrets:set GEMINI_API_KEY
+ * → プロンプトに Gemini APIキーを入力して Enter
  *
  * ── デプロイ前の設定 ──────────────────────────────────────────────
  *   # メール設定（Gmail アプリパスワード推奨）
@@ -28,6 +31,9 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as nodemailer from 'nodemailer';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { defineSecret } from 'firebase-functions/params';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -137,6 +143,159 @@ export const onNotificationCreated = functions
     functions.logger.info(`通知メール送信完了: ${targets.length}件`);
   });
 
-// ※ 画像OCR（Gemini）はフロントエンドから直接呼び出します。
-//   .env.local の VITE_GEMINI_API_KEY を参照するため、
-//   Cloud Functions での実装は不要です。
+// ════════════════════════════════════════════════════════════════════
+// Gemini API キー（Firebase Secret Manager で管理）
+// 初回のみ: firebase functions:secrets:set GEMINI_API_KEY
+// ════════════════════════════════════════════════════════════════════
+const geminiSecret = defineSecret('GEMINI_API_KEY');
+
+// ── 共通型定義 ────────────────────────────────────────────────────
+interface VendorQuoteItem {
+  itemName:  string;
+  quantity:  number;
+  unit:      string;
+  unitPrice: number;
+  total:     number;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 2. analyzeVendorDoc — 業者見積書・請求書OCR（認証不要）
+//    業者向け公開フォームから呼び出すため invoker: 'public'
+// ════════════════════════════════════════════════════════════════════
+export const analyzeVendorDoc = onCall(
+  {
+    region:       'asia-northeast1',
+    secrets:      [geminiSecret],
+    maxInstances: 5,
+    invoker:      'public',
+    timeoutSeconds: 60,
+  },
+  async (request) => {
+    const { base64, mimeType } = request.data as { base64?: string; mimeType?: string };
+    if (!base64 || !mimeType) {
+      throw new HttpsError('invalid-argument', 'base64 と mimeType は必須です');
+    }
+    if (base64.length > 14_000_000) {
+      throw new HttpsError('invalid-argument', 'ファイルサイズが大きすぎます（10MB 以内にしてください）');
+    }
+    const allowed = ['image/jpeg','image/jpg','image/png','image/gif','image/webp','image/heic','image/heif','image/png','application/pdf'];
+    if (!allowed.includes(mimeType)) {
+      throw new HttpsError('invalid-argument', '対応していないファイル形式です');
+    }
+
+    const prompt = `この見積書・請求書・納品書を解析し、明細データと発行日を抽出してください。
+以下のJSON形式のみで返答してください（説明文不要）:
+{"items":[{"itemName":"品名","quantity":1,"unit":"式","unitPrice":120000,"total":120000}],"date":"2026年5月30日"}
+ルール:
+- items: 明細・工事内容の行のみ（合計行・小計・消費税・ヘッダー行は含めない）
+- unitPrice/total: 整数（¥マーク・カンマなし）
+- date: "YYYY年M月D日" 形式。なければ null
+- 品名が空または金額不明の行は除外。最大20行
+JSONのみ返してください。`;
+
+    const genAI = new GoogleGenerativeAI(geminiSecret.value());
+    const model  = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const result = await model.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType, data: base64 } },
+          { text: prompt },
+        ],
+      }],
+    });
+
+    const raw = result.response.text()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim();
+
+    try {
+      const parsed = JSON.parse(raw) as { items?: Partial<VendorQuoteItem>[]; date?: string | null };
+      const items: VendorQuoteItem[] = (parsed.items ?? [])
+        .filter((it): it is Partial<VendorQuoteItem> => !!it && typeof it.itemName === 'string')
+        .map(it => ({
+          itemName:  String(it.itemName ?? '').slice(0, 50),
+          quantity:  Number(it.quantity  ?? 1),
+          unit:      String(it.unit      ?? '式'),
+          unitPrice: Math.round(Number(it.unitPrice ?? 0)),
+          total:     Math.round(Number(it.total     ?? 0)),
+        }))
+        .filter(it => it.itemName.length > 0 && it.unitPrice > 0)
+        .slice(0, 20);
+      return { items, date: typeof parsed.date === 'string' ? parsed.date : null };
+    } catch {
+      return { items: [], date: null };
+    }
+  },
+);
+
+// ════════════════════════════════════════════════════════════════════
+// 3. geminiAnalyzeReport — 音声日報解析（認証必須）
+// ════════════════════════════════════════════════════════════════════
+export const geminiAnalyzeReport = onCall(
+  {
+    region:       'asia-northeast1',
+    secrets:      [geminiSecret],
+    maxInstances: 10,
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', '認証が必要です');
+    const { text } = request.data as { text?: string };
+    if (!text || typeof text !== 'string') throw new HttpsError('invalid-argument', 'text は必須です');
+    if (text.length > 5000) throw new HttpsError('invalid-argument', 'text は5000文字以内にしてください');
+
+    const today = new Date().toISOString().split('T')[0];
+    const systemPrompt = `あなたは建築会社のマネージャーAIです。
+営業が吹き込んだ音声から以下の情報を抽出し、JSON形式で回答してください。
+{"customerIssue":"顧客の課題（具体的に）","keymanReaction":"キーマンの反応（具体的に）","budget":"予算感（金額・範囲。言及なければ空文字）","nextAction":"次回アクション（日時・内容を含む具体的な行動計画）","nextVisitDate":"次回訪問・フォロー予定日 YYYY-MM-DD 形式。相対表現は今日(${today})から計算。不明はnull","missingField":"budget"|"nextAction"|null,"followUpQuestion":"重要情報が不足している場合のみ自然な追加質問（ない場合はnull）"}
+missingField は budget・nextAction のどちらか1つのみ、または null。nextAction が不明なら必ず missingField を nextAction にすること。
+JSONのみ返してください。`;
+
+    const genAI = new GoogleGenerativeAI(geminiSecret.value());
+    // systemInstruction はモデル初期化時に文字列で渡す（Content 型不要）
+    const model  = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: systemPrompt,
+    });
+    const result = await model.generateContent({
+      contents:        [{ role: 'user', parts: [{ text: `営業報告: ${text}` }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    });
+
+    return JSON.parse(result.response.text());
+  },
+);
+
+// ════════════════════════════════════════════════════════════════════
+// 4. geminiDailySummary — 日報サマリー生成（認証必須）
+// ════════════════════════════════════════════════════════════════════
+export const geminiDailySummary = onCall(
+  {
+    region:       'asia-northeast1',
+    secrets:      [geminiSecret],
+    maxInstances: 10,
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', '認証が必要です');
+    const { staffName, logText } = request.data as { staffName?: string; logText?: string };
+    if (!staffName || !logText) throw new HttpsError('invalid-argument', 'staffName と logText は必須です');
+
+    const systemPrompt = `あなたは建築会社の管理AIです。
+営業担当の本日の活動ログを元に、管理者・本人向けの日報サマリーを200文字以内で生成してください。
+訪問先の概要・商談進捗・翌日以降の重点事項を簡潔にまとめてください。`;
+
+    const genAI = new GoogleGenerativeAI(geminiSecret.value());
+    const model  = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: systemPrompt,
+    });
+    const result = await model.generateContent(
+      `担当者: ${staffName}\n本日の活動ログ:\n${logText}`,
+    );
+
+    return { summary: result.response.text().trim() };
+  },
+);

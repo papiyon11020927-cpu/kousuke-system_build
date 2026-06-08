@@ -1,50 +1,34 @@
+/**
+ * aiService — Gemini API 呼び出しを Cloud Functions 経由で行う
+ *
+ * Gemini APIキーはサーバー側（Cloud Functions）のみに保持し、
+ * ブラウザバンドルには含まれない。
+ * VITE_GEMINI_API_KEY は不要になった。
+ */
+import { httpsCallable } from 'firebase/functions';
+import { fbFunctions } from '@/firebase/config';
 import type { AiAnalysisResult, InOutLog } from '@/types';
 
-const GEMINI_KEY = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ?? '';
+// ── Callable 関数の参照 ─────────────────────────────────────────
+const analyzeReportFn    = httpsCallable<{ text: string }, AiAnalysisResult>(
+  fbFunctions, 'geminiAnalyzeReport',
+);
+const dailySummaryFn     = httpsCallable<{ staffName: string; logText: string }, { summary: string }>(
+  fbFunctions, 'geminiDailySummary',
+);
 
-const SYSTEM_PROMPT = `あなたは建築会社「住良建設」のマネージャーAIです。
-営業が吹き込んだ音声から以下の情報を抽出し、JSON形式で回答してください。
-{
-  "customerIssue": "顧客の課題（具体的に）",
-  "keymanReaction": "キーマンの反応（具体的に）",
-  "budget": "予算感（金額・範囲。言及なければ空文字）",
-  "nextAction": "次回アクション（日時・内容を含む具体的な行動計画）",
-  "nextVisitDate": "次回訪問・フォロー予定日 YYYY-MM-DD 形式。相対表現は今日(${new Date().toISOString().split('T')[0]})から計算。不明はnull",
-  "missingField": "budget" | "nextAction" | null,
-  "followUpQuestion": "重要情報が不足している場合のみ自然な追加質問（ない場合はnull）"
-}
-missingField は budget・nextAction のどちらか1つのみ、または null。nextAction が不明なら必ず missingField を nextAction にすること。`;
-
+// ─── 音声日報解析 ──────────────────────────────────────────────
 export const analyzeReport = async (text: string): Promise<AiAnalysisResult> => {
-  if (!GEMINI_KEY) return simulateAnalysis(text);
-
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `営業報告: ${text}` }] }],
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
-      },
-    );
-    if (!res.ok) throw new Error(`Gemini API ${res.status}`);
-    const json = await res.json();
-    return JSON.parse(json.candidates?.[0]?.content?.parts?.[0]?.text) as AiAnalysisResult;
-  } catch {
+    const result = await analyzeReportFn({ text });
+    return result.data;
+  } catch (err) {
+    console.warn('[aiService] analyzeReport fallback to simulation:', err);
     return simulateAnalysis(text);
   }
 };
 
-// ─── 日報サマリー生成 ───────────────────────────────────────────
-
-const DAILY_PROMPT = `あなたは建築会社「住良建設」の管理AIです。
-営業担当の本日の活動ログを元に、管理者・本人向けの日報サマリーを200文字以内で生成してください。
-訪問先の概要・商談進捗・翌日以降の重点事項を簡潔にまとめてください。`;
-
+// ─── 日報サマリー生成 ──────────────────────────────────────────
 export const generateDailySummary = async (
   staffName: string,
   logs: InOutLog[],
@@ -63,46 +47,31 @@ export const generateDailySummary = async (
     })
     .join('\n');
 
-  if (!GEMINI_KEY) return simulateDailySummary(staffName, outLogs);
-
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `担当者: ${staffName}\n本日の活動ログ:\n${logText}` }] }],
-          systemInstruction: { parts: [{ text: DAILY_PROMPT }] },
-        }),
-      },
-    );
-    if (!res.ok) throw new Error(`Gemini API ${res.status}`);
-    const json = await res.json();
-    const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    return text || simulateDailySummary(staffName, outLogs);
-  } catch {
+    const result = await dailySummaryFn({ staffName, logText });
+    return result.data.summary || simulateDailySummary(staffName, outLogs);
+  } catch (err) {
+    console.warn('[aiService] generateDailySummary fallback to simulation:', err);
     return simulateDailySummary(staffName, outLogs);
   }
 };
 
-const simulateDailySummary = (staffName: string, outLogs: InOutLog[]): Promise<string> => {
+// ─── フォールバック（Functionsが未デプロイ・オフライン時） ──────
+const simulateDailySummary = (staffName: string, outLogs: InOutLog[]): string => {
   const latest = outLogs[outLogs.length - 1];
   const nextAction = latest?.structuredData?.nextAction;
-  return Promise.resolve(
+  return (
     `${staffName}：本日は${outLogs.length}件の訪問を完了。` +
     (nextAction
       ? `最新の次回アクション「${nextAction}」に向けた準備を進める予定。`
       : '各顧客との商談を進め、見積提示の準備を継続中。') +
-    '引き続き積極的なフォローアップを実施。',
+    '引き続き積極的なフォローアップを実施。'
   );
 };
 
 /** テキストから日本語日付表現を解析して YYYY-MM-DD を返す（なければ undefined） */
 const parseJaDate = (text: string): string | undefined => {
   const now = new Date();
-
-  // 絶対表現: XX月XX日
   const absMatch = text.match(/(\d{1,2})月(\d{1,2})日/);
   if (absMatch) {
     const month = parseInt(absMatch[1]) - 1;
@@ -111,7 +80,6 @@ const parseJaDate = (text: string): string | undefined => {
     if (d <= now) d.setFullYear(d.getFullYear() + 1);
     return d.toISOString().split('T')[0];
   }
-  // 相対表現
   if (/(\d+)日後/.test(text)) {
     const m = text.match(/(\d+)日後/)!;
     const d = new Date(now); d.setDate(d.getDate() + parseInt(m[1]));
@@ -138,7 +106,6 @@ const simulateAnalysis = (text: string): Promise<AiAnalysisResult> =>
       const hasBudget   = /万|円|予算|コスト/.test(text);
       const hasNextDate = /日|月|週|来月|次回|アポ|提示|再訪|提出/.test(text);
       const nextVisitDate = parseJaDate(text);
-
       const result: AiAnalysisResult = {
         customerIssue:  '配管・設備の老朽化が判明。全面リフォームを検討されている。',
         keymanReaction: '決定権者のご夫婦ともに前向き。早期の見積提示を求めている。',
@@ -148,15 +115,13 @@ const simulateAnalysis = (text: string): Promise<AiAnalysisResult> =>
         missingField:   null,
         followUpQuestion: null,
       };
-
       if (!hasNextDate) {
         result.missingField      = 'nextAction';
-        result.followUpQuestion  = '報告ありがとうございます！次回のアクションとして、見積提示や再訪問の期日はお客様と合意できましたか？具体的な日時があれば教えてください。';
+        result.followUpQuestion  = '報告ありがとうございます！次回のアクションとして、見積提示や再訪問の期日はお客様と合意できましたか？';
       } else if (!hasBudget) {
         result.missingField      = 'budget';
         result.followUpQuestion  = '次回提示日も設定できてバッチリです！ご希望工事の「予算感」について何か情報共有はありましたか？';
       }
-
       resolve(result);
     }, 1500);
   });

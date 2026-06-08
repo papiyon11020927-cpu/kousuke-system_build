@@ -25,7 +25,8 @@ import {
   submitCompletionReport,
 } from '@/services/vendorQuoteService';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { storage, fbFunctions } from '@/firebase/config';
 
 /** 写真を WebP に圧縮して Firebase Storage にアップロード → URL を返す */
 async function uploadCompletionPhoto(file: File, requestId: string, idx: number): Promise<string> {
@@ -99,24 +100,6 @@ function parseGeminiJson(raw: string): GeminiOcrResult {
   }
 }
 
-const GEMINI_PROMPT = `
-この見積書・請求書・納品書の画像またはスキャンPDFを解析し、明細データと発行日を抽出してください。
-
-以下のJSON形式のみで返答してください（説明文・マークダウン記法不要）:
-{"items":[{"itemName":"品名","quantity":1,"unit":"式","unitPrice":120000,"total":120000}],"date":"2026年5月30日"}
-
-抽出ルール:
-- items: 明細・工事内容の行のみ（合計行・小計・消費税・ヘッダー行は含めない）
-- itemName: 品名・工事名称（最大50文字）
-- quantity: 数量（数値型）
-- unit: 単位（式/個/本/台/㎡/m/組/セット 等。不明なら "式"）
-- unitPrice: 単価（整数。¥マーク・カンマを除いた数値のみ）
-- total: 行の合計金額（整数。quantity × unitPrice）
-- date: 発行日・見積日（"YYYY年M月D日" 形式。見つからなければ null）
-- 品名が空、または金額が読み取れない行は除外。最大20行まで
-JSONのみ返してください。前後に文字を入れないでください。
-`.trim();
-
 // Gemini がサポートする画像 MIME タイプ
 const GEMINI_SUPPORTED_IMAGE_TYPES = new Set([
   'image/jpeg', 'image/jpg', 'image/png',
@@ -164,26 +147,17 @@ async function normalizeImageForGemini(file: File): Promise<{ data: string; mime
   });
 }
 
+// Cloud Functions 経由で Gemini OCR を実行（APIキーはサーバー側のみ）
+const analyzeVendorDocFn = httpsCallable<
+  { base64: string; mimeType: string },
+  GeminiOcrResult
+>(fbFunctions, 'analyzeVendorDoc');
+
 async function analyzeFileWithGemini(file: File): Promise<GeminiOcrResult> {
-  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ?? '';
-  if (!apiKey) {
-    throw new Error('VITE_GEMINI_API_KEY が .env.local に未設定です');
-  }
-
-  // バンドルサイズ削減のため動的インポート（スキャン画像選択時のみ読み込む）
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const model = new GoogleGenerativeAI(apiKey)
-    .getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-  // BMP など非対応形式は PNG に変換してから送信
+  // BMP など Gemini 非対応形式は PNG に変換してから送信
   const { data: base64, mimeType } = await normalizeImageForGemini(file);
-
-  const result = await model.generateContent([
-    GEMINI_PROMPT,
-    { inlineData: { data: base64, mimeType } },
-  ]);
-
-  return parseGeminiJson(result.response.text());
+  const result = await analyzeVendorDocFn({ base64, mimeType });
+  return result.data;
 }
 
 interface Props {
