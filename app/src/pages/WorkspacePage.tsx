@@ -19,15 +19,17 @@ import {
 // ─────────────────────────────────────────────────────────────
 const STATUS_PRIORITY: Record<ProjectStatus, number> = {
   construction: 0,
-  contract:     1,
-  estimate:     2,
-  lead:         3,
-  completed:    4,
-  lost:         5,
+  settlement:   1,
+  contract:     2,
+  estimate:     3,
+  lead:         4,
+  completed:    5,
+  closed:       6,
+  lost:         7,
 };
 
 const ALL_STATUSES: ProjectStatus[] = [
-  'lead', 'estimate', 'contract', 'construction', 'completed', 'lost',
+  'lead', 'estimate', 'contract', 'construction', 'completed', 'settlement', 'closed', 'lost',
 ];
 
 /** 'active' = 完工以外の全ステータス（初期フィルタ用） */

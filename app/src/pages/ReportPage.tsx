@@ -16,11 +16,12 @@ import { saveSchedule }   from '@/services/scheduleService';
 // ─── 案件ステータス定数（ReportPage 内共用） ───────────────────
 
 const PROJ_STATUSES: ProjectStatus[] = [
-  'lead', 'estimate', 'contract', 'construction', 'completed', 'lost',
+  'lead', 'estimate', 'contract', 'construction', 'completed', 'settlement', 'closed', 'lost',
 ];
 const PROJ_STATUS_LABEL: Record<ProjectStatus, string> = {
   lead: '反響', estimate: '見積提出', contract: '契約済',
-  construction: '施工中', completed: '完工', lost: '失注',
+  construction: '施工中', completed: '完工',
+  settlement: '精算中', closed: 'クローズ', lost: '失注',
 };
 const PROJ_STATUS_COLOR: Record<ProjectStatus, string> = {
   lead:         'bg-gray-700 text-gray-300',
@@ -28,6 +29,8 @@ const PROJ_STATUS_COLOR: Record<ProjectStatus, string> = {
   contract:     'bg-blue-900/60 text-blue-300',
   construction: 'bg-emerald-900/60 text-emerald-300',
   completed:    'bg-gray-800 text-gray-400',
+  settlement:   'bg-violet-900/60 text-violet-300',
+  closed:       'bg-teal-900/60 text-teal-300',
   lost:         'bg-red-900/40 text-red-400',
 };
 

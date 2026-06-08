@@ -3956,6 +3956,8 @@ const WS_STEP_INDEX: Record<ProjectStatus, number> = {
   contract:     2,
   construction: 3,
   completed:    4,
+  settlement:   4,  // 精算中も完工タブを基準に表示
+  closed:       4,  // クローズも同上
   lost:        -1,
 };
 
