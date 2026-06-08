@@ -21,6 +21,8 @@ export type ProjectStatus =
   | 'contract'     // 契約締結済
   | 'construction' // 施工中
   | 'completed'    // 完工済
+  | 'settlement'   // 精算中（完工後・入出金精算フェーズ）
+  | 'closed'       // クローズ（顧客・業者の精算すべて完了）
   | 'lost';        // 失注
 
 /** 案件の複数担当者（按分比率付き） */

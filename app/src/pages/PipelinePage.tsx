@@ -1,11 +1,14 @@
 /**
  * PipelinePage — 案件パイプライン（カンバンビュー）
  *
- * 表示ステータス: 引き合い / 見積提出 / 契約済 / 施工中 / 精算待ち（期日超過）
- * 「完工」「失注」は別管理のため非表示
+ * ステータスフロー:
+ *   引き合い → 見積提出 → 契約済 → 施工中 → 完工 → 精算中 → [クローズ]
+ *   どの段階からでも → 失注
+ *
+ * 表示列: 引き合い / 見積提出 / 契約済 / 施工中 / 完工 / 精算中
+ * 「クローズ」「失注」は ⋯ メニューからのみ遷移（アーカイブ扱い）
+ * 右端に「期日超過」仮想列: 完工予定日を超過しているのに精算中になっていない案件
  * PC : カードをドラッグ＆ドロップでステータス変更
- * 共通: 「→ 次へ」ボタン or「⋯」メニューでステータス変更
- * 管理者: 担当者フィルター付き
  */
 import { useState, useMemo, memo } from 'react';
 import {
@@ -17,14 +20,14 @@ import { updateProjectStatus, setLostReason } from '@/services/projectService';
 
 // ─── 定数 ────────────────────────────────────────────────────────
 
-/** パイプライン表示列（完工・失注は除外）*/
+/** パイプライン表示列（クローズ・失注は除外） */
 const PIPELINE_STATUSES: ProjectStatus[] = [
-  'lead', 'estimate', 'contract', 'construction',
+  'lead', 'estimate', 'contract', 'construction', 'completed', 'settlement',
 ];
 
-/** ステータス変更メニューには全ステータスを表示（完工・失注への移行も可能） */
+/** ステータス変更メニューには全ステータスを表示 */
 const ALL_STATUSES: ProjectStatus[] = [
-  'lead', 'estimate', 'contract', 'construction', 'completed', 'lost',
+  'lead', 'estimate', 'contract', 'construction', 'completed', 'settlement', 'closed', 'lost',
 ];
 
 const STATUS_CFG: Record<ProjectStatus, {
@@ -34,12 +37,14 @@ const STATUS_CFG: Record<ProjectStatus, {
   cardCls:   string;
   borderCls: string;
 }> = {
-  lead:         { label: '引き合い', headCls: 'bg-gray-800 text-gray-300',          dropCls: 'bg-gray-800/40',    cardCls: 'bg-[#131C38] border-gray-700',      borderCls: 'border-gray-700'      },
-  estimate:     { label: '見積提出', headCls: 'bg-yellow-900/60 text-yellow-300',   dropCls: 'bg-yellow-900/20', cardCls: 'bg-[#1C1808] border-yellow-900/40', borderCls: 'border-yellow-900/40' },
-  contract:     { label: '契約済',  headCls: 'bg-blue-900/60 text-blue-300',       dropCls: 'bg-blue-900/20',   cardCls: 'bg-[#080E1F] border-blue-900/40',   borderCls: 'border-blue-900/40'   },
-  construction: { label: '施工中',  headCls: 'bg-emerald-900/60 text-emerald-300', dropCls: 'bg-emerald-900/20',cardCls: 'bg-[#071510] border-emerald-900/40', borderCls: 'border-emerald-900/40'},
-  completed:    { label: '完工',    headCls: 'bg-gray-800/80 text-gray-400',       dropCls: 'bg-gray-800/30',   cardCls: 'bg-[#0D1020] border-gray-800',      borderCls: 'border-gray-800'      },
-  lost:         { label: '失注',    headCls: 'bg-red-950/60 text-red-400',         dropCls: 'bg-red-950/20',    cardCls: 'bg-[#130808] border-red-900/30',    borderCls: 'border-red-900/30'    },
+  lead:         { label: '引き合い', headCls: 'bg-gray-800 text-gray-300',            dropCls: 'bg-gray-800/40',     cardCls: 'bg-[#131C38] border-gray-700',        borderCls: 'border-gray-700'       },
+  estimate:     { label: '見積提出', headCls: 'bg-yellow-900/60 text-yellow-300',     dropCls: 'bg-yellow-900/20',   cardCls: 'bg-[#1C1808] border-yellow-900/40',   borderCls: 'border-yellow-900/40'  },
+  contract:     { label: '契約済',   headCls: 'bg-blue-900/60 text-blue-300',         dropCls: 'bg-blue-900/20',     cardCls: 'bg-[#080E1F] border-blue-900/40',     borderCls: 'border-blue-900/40'    },
+  construction: { label: '施工中',   headCls: 'bg-emerald-900/60 text-emerald-300',   dropCls: 'bg-emerald-900/20',  cardCls: 'bg-[#071510] border-emerald-900/40',  borderCls: 'border-emerald-900/40' },
+  completed:    { label: '完工',     headCls: 'bg-sky-900/60 text-sky-300',           dropCls: 'bg-sky-900/20',      cardCls: 'bg-[#060E18] border-sky-900/40',      borderCls: 'border-sky-900/40'     },
+  settlement:   { label: '精算中',   headCls: 'bg-violet-900/60 text-violet-300',     dropCls: 'bg-violet-900/20',   cardCls: 'bg-[#0D0714] border-violet-900/40',   borderCls: 'border-violet-900/40'  },
+  closed:       { label: 'クローズ', headCls: 'bg-teal-900/60 text-teal-300',         dropCls: 'bg-teal-900/20',     cardCls: 'bg-[#051210] border-teal-900/40',     borderCls: 'border-teal-900/40'    },
+  lost:         { label: '失注',     headCls: 'bg-red-950/60 text-red-400',           dropCls: 'bg-red-950/20',      cardCls: 'bg-[#130808] border-red-900/30',      borderCls: 'border-red-900/30'     },
 };
 
 // 次ステータスへの遷移マップ
@@ -47,7 +52,9 @@ const NEXT_STATUS: Partial<Record<ProjectStatus, { status: ProjectStatus; label:
   lead:         { status: 'estimate',     label: '見積提出へ' },
   estimate:     { status: 'contract',     label: '契約へ'     },
   contract:     { status: 'construction', label: '着工へ'     },
-  construction: { status: 'completed',    label: '完工へ'     },
+  construction: { status: 'completed',   label: '完工へ'     },
+  completed:    { status: 'settlement',  label: '精算へ'     },
+  settlement:   { status: 'closed',      label: 'クローズ'   },
 };
 
 // ─── ユーティリティ ──────────────────────────────────────────────
@@ -163,7 +170,7 @@ const KanbanCard = memo(function KanbanCard({
   project:        Project;
   customer?:      Customer;
   showAssignee:   boolean;
-  overdueDays?:   number;   // 精算列: 何日超過か
+  overdueDays?:   number;   // 期日超過列: 何日超過か
   onStatusChange: (projectId: string, status: ProjectStatus) => void;
   onCardClick:    (projectId: string) => void;
   isDragging:     boolean;
@@ -187,18 +194,16 @@ const KanbanCard = memo(function KanbanCard({
         ${isDragging ? 'opacity-30 scale-95' : ''}
       `}
     >
-      {/* 超過日数バッジ（精算列のみ） */}
+      {/* 超過日数バッジ（期日超過列のみ） */}
       {overdueDays != null && overdueDays > 0 && (
         <div className="absolute top-2 right-2 bg-amber-700/60 text-amber-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
           <LucideClock size={8} /> {overdueDays}日超過
         </div>
       )}
 
-      {/* 精算列: 現ステータスバッジ */}
+      {/* 期日超過列: 現ステータスバッジ */}
       {overdueDays != null && (
-        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold mb-1 inline-block ${
-          project.status === 'contract' ? 'bg-blue-900/60 text-blue-300' : 'bg-emerald-900/60 text-emerald-300'
-        }`}>
+        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold mb-1 inline-block ${STATUS_CFG[project.status].headCls}`}>
           {STATUS_CFG[project.status].label}
         </span>
       )}
@@ -257,7 +262,8 @@ const KanbanCard = memo(function KanbanCard({
                   onClick={() => { onStatusChange(project.projectId, s); setShowMenu(false); }}
                   className={`flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-left hover:bg-white/10 transition-colors
                     ${s === project.status ? 'text-[#C5A059] font-bold' : 'text-gray-300'}
-                    ${s === 'lost' ? 'text-red-400 hover:text-red-300' : ''}
+                    ${s === 'lost'   ? 'text-red-400 hover:text-red-300'   : ''}
+                    ${s === 'closed' ? 'text-teal-400 hover:text-teal-300' : ''}
                   `}
                 >
                   {s === project.status && <LucideCheck size={9} className="shrink-0" />}
@@ -285,38 +291,41 @@ interface ColumnProps {
   onDrop:         (e: React.DragEvent, s: ProjectStatus) => void;
   onStatusChange: (projectId: string, status: ProjectStatus) => void;
   onCardClick:    (projectId: string) => void;
-  /** 精算列専用 */
-  isSettlement?:  boolean;
-  settlementItems?: Array<{ project: Project; customer?: Customer; overdueDays: number }>;
+  /** 期日超過仮想列 */
+  isOverdue?:       boolean;
+  overdueItems?:    Array<{ project: Project; customer?: Customer; overdueDays: number }>;
 }
 
 function KanbanColumn({
   status, items, showAssignee, isDragOver, draggingId,
   onDragOver, onDragLeave, onDrop, onStatusChange, onCardClick,
-  isSettlement, settlementItems,
+  isOverdue, overdueItems,
 }: ColumnProps) {
-  const cfg      = isSettlement
-    ? { label: '精算待ち', headCls: 'bg-amber-900/60 text-amber-300', dropCls: 'bg-amber-900/20', borderCls: 'border-amber-900/40' }
+  const cfg = isOverdue
+    ? { label: '期日超過', headCls: 'bg-amber-900/60 text-amber-300', dropCls: 'bg-amber-900/20', borderCls: 'border-amber-900/40' }
     : STATUS_CFG[status];
-  const totalAmt = items.reduce((s, { project: p }) => s + (p.amount ?? 0), 0);
-  const displayItems = isSettlement ? (settlementItems ?? []) : items;
+  const totalAmt     = items.reduce((s, { project: p }) => s + (p.amount ?? 0), 0);
+  const displayItems = isOverdue ? (overdueItems ?? []) : items;
 
   return (
-    <div className="w-56 shrink-0 flex flex-col" style={{ maxHeight: 'calc(100vh - 230px)' }}>
+    <div className="w-52 shrink-0 flex flex-col" style={{ maxHeight: 'calc(100vh - 230px)' }}>
       {/* 列ヘッダー */}
       <div className={`rounded-t-lg px-3 py-2 ${cfg.headCls}`}>
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold flex items-center gap-1">
-            {isSettlement && <LucideAlertTriangle size={11} />}
+            {isOverdue && <LucideAlertTriangle size={11} />}
             {cfg.label}
           </span>
           <span className="text-[10px] font-mono bg-black/25 px-1.5 py-0.5 rounded-full">{displayItems.length}</span>
         </div>
-        {totalAmt > 0 && !isSettlement && (
+        {totalAmt > 0 && !isOverdue && (
           <p className="text-[10px] opacity-70 mt-0.5 font-mono">{fmtMan(totalAmt)}</p>
         )}
-        {isSettlement && (
-          <p className="text-[10px] opacity-70 mt-0.5">完工予定日超過の案件</p>
+        {isOverdue && (
+          <p className="text-[10px] opacity-70 mt-0.5">精算未着手の超過案件</p>
+        )}
+        {status === 'settlement' && !isOverdue && (
+          <p className="text-[10px] opacity-70 mt-0.5">入出金精算フェーズ</p>
         )}
       </div>
 
@@ -340,7 +349,7 @@ function KanbanColumn({
             project={project}
             customer={customer}
             showAssignee={showAssignee}
-            overdueDays={isSettlement ? (overdueDays ?? 0) : undefined}
+            overdueDays={isOverdue ? (overdueDays ?? 0) : undefined}
             onStatusChange={onStatusChange}
             onCardClick={onCardClick}
             isDragging={draggingId === project.projectId}
@@ -348,7 +357,7 @@ function KanbanColumn({
         ))}
         {displayItems.length === 0 && (
           <div className="flex items-center justify-center h-14 text-[10px] text-gray-700 border border-dashed border-gray-800 rounded-lg">
-            {isSettlement ? '超過案件なし' : '案件なし'}
+            {isOverdue ? '超過案件なし' : '案件なし'}
           </div>
         )}
       </div>
@@ -376,11 +385,10 @@ export default function PipelinePage({
 }: Props) {
   const isManagerLike = currentRole === 'manager' || currentRole === 'admin';
 
-  const [staffFilter,      setStaffFilter]      = useState<string>(isManagerLike ? '' : currentUserName);
-  const [draggingId,       setDraggingId]       = useState<string | null>(null);
-  const [dragOver,         setDragOver]         = useState<ProjectStatus | null>(null);
-  // 失注理由ダイアログ
-  const [lostDialog,       setLostDialog]       = useState<{ projectId: string; title: string; nextStatus: ProjectStatus } | null>(null);
+  const [staffFilter, setStaffFilter] = useState<string>(isManagerLike ? '' : currentUserName);
+  const [draggingId,  setDraggingId]  = useState<string | null>(null);
+  const [dragOver,    setDragOver]    = useState<ProjectStatus | null>(null);
+  const [lostDialog,  setLostDialog]  = useState<{ projectId: string; title: string } | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -391,7 +399,7 @@ export default function PipelinePage({
     return m;
   }, [customers]);
 
-  // プロジェクトごとの完工予定日（承認済み/署名済み契約の constructionEndDate を優先）
+  // プロジェクトごとの完工予定日
   const projectEndDateMap = useMemo(() => {
     const m: Record<string, string> = {};
     contracts.forEach(c => {
@@ -414,11 +422,11 @@ export default function PipelinePage({
       : projects,
   [projects, staffFilter]);
 
-  // 精算対象（完工予定日超過の contract/construction 案件）
-  const settlementItems = useMemo(() => {
+  // 期日超過仮想列: 施工中または完工済で、完工予定日超過かつ精算中になっていない案件
+  const overdueItems = useMemo(() => {
     return filteredProjects
       .filter(p => {
-        if (p.status !== 'contract' && p.status !== 'construction') return false;
+        if (p.status !== 'construction' && p.status !== 'completed') return false;
         const endDate = projectEndDateMap[p.projectId] || p.deadline;
         return !!(endDate && endDate < today);
       })
@@ -430,19 +438,18 @@ export default function PipelinePage({
       .sort((a, b) => b.overdueDays - a.overdueDays);
   }, [filteredProjects, projectEndDateMap, customerMap, today]);
 
-  // 精算に含まれるプロジェクトIDセット
-  const settlementIds = useMemo(
-    () => new Set(settlementItems.map(i => i.project.projectId)),
-    [settlementItems],
+  const overdueIds = useMemo(
+    () => new Set(overdueItems.map(i => i.project.projectId)),
+    [overdueItems],
   );
 
-  // 各ステータスにカテゴライズ（精算済みは除外）
+  // 各ステータスにカテゴライズ（期日超過列に入ったものは除外）
   const itemsByStatus = useMemo(() => {
     const map: Partial<Record<ProjectStatus, Array<{ project: Project; customer?: Customer }>>> = {};
     PIPELINE_STATUSES.forEach(s => { map[s] = []; });
     filteredProjects.forEach(p => {
       if (!PIPELINE_STATUSES.includes(p.status)) return;
-      if (settlementIds.has(p.projectId)) return; // 精算列に移動
+      if (overdueIds.has(p.projectId)) return; // 期日超過列に移動
       map[p.status]!.push({ project: p, customer: customerMap[p.customerId] });
     });
     PIPELINE_STATUSES.forEach(s => {
@@ -451,26 +458,27 @@ export default function PipelinePage({
       );
     });
     return map as Record<ProjectStatus, Array<{ project: Project; customer?: Customer }>>;
-  }, [filteredProjects, customerMap, settlementIds]);
+  }, [filteredProjects, customerMap, overdueIds]);
 
-  // パイプライン合計（失注・完工除く）
+  // パイプライン合計（クローズ・失注除く）
   const pipelineTotal = useMemo(() =>
     filteredProjects
-      .filter(p => p.status !== 'lost' && p.status !== 'completed')
+      .filter(p => p.status !== 'lost' && p.status !== 'closed')
       .reduce((s, p) => s + (p.amount ?? 0), 0),
   [filteredProjects]);
 
   const activeCount = filteredProjects.filter(
-    p => p.status !== 'lost' && p.status !== 'completed',
+    p => p.status !== 'lost' && p.status !== 'closed',
   ).length;
+
+  const settlementCount = filteredProjects.filter(p => p.status === 'settlement').length;
 
   // ─── ステータス変更ハンドラ ──────────────────────────────────
   const handleStatusChange = (projectId: string, newStatus: ProjectStatus) => {
     const p = projects.find(x => x.projectId === projectId);
     if (!p || p.status === newStatus) return;
     if (newStatus === 'lost') {
-      // 失注理由ダイアログを表示
-      setLostDialog({ projectId, title: p.title, nextStatus: 'lost' });
+      setLostDialog({ projectId, title: p.title });
       return;
     }
     updateProjectStatus(projectId, newStatus)
@@ -530,9 +538,14 @@ export default function PipelinePage({
             進行中&ensp;<span className="text-white font-bold">{activeCount}</span>件&emsp;
             パイプライン合計&ensp;
             <span className="text-[#C5A059] font-mono font-bold">{fmtMan(pipelineTotal)}</span>
-            {settlementItems.length > 0 && (
+            {settlementCount > 0 && (
+              <span className="ml-3 text-violet-400">
+                精算中 <span className="font-bold">{settlementCount}</span>件
+              </span>
+            )}
+            {overdueItems.length > 0 && (
               <span className="ml-3 text-amber-400">
-                精算待ち <span className="font-bold">{settlementItems.length}</span>件
+                期日超過 <span className="font-bold">{overdueItems.length}</span>件
               </span>
             )}
           </p>
@@ -561,9 +574,9 @@ export default function PipelinePage({
       >
         <div
           className="flex gap-3"
-          style={{ minWidth: `${(PIPELINE_STATUSES.length + 1) * 236}px` }}
+          style={{ minWidth: `${(PIPELINE_STATUSES.length + 1) * 220}px` }}
         >
-          {/* メイン4列 */}
+          {/* メイン6列（引き合い〜精算中） */}
           {PIPELINE_STATUSES.map(status => (
             <KanbanColumn
               key={status}
@@ -580,11 +593,11 @@ export default function PipelinePage({
             />
           ))}
 
-          {/* 精算列（分割線あり） */}
+          {/* 期日超過列（分割線あり） */}
           <div className="flex items-stretch gap-3">
             <div className="w-px bg-amber-700/30 self-stretch rounded-full" />
             <KanbanColumn
-              status="construction"  /* ダミー（精算列は isSettlement=true で上書き） */
+              status="construction"   /* isOverdue=true で上書きされるためダミー */
               items={[]}
               showAssignee={showAssignee}
               isDragOver={false}
@@ -594,8 +607,8 @@ export default function PipelinePage({
               onDrop={() => {}}
               onStatusChange={handleStatusChange}
               onCardClick={onCardClick}
-              isSettlement={true}
-              settlementItems={settlementItems}
+              isOverdue={true}
+              overdueItems={overdueItems}
             />
           </div>
         </div>
@@ -603,7 +616,9 @@ export default function PipelinePage({
 
       <p className="text-[10px] text-gray-700 text-center pb-2">
         PC: カードをドラッグ＆ドロップでステータス変更 ／ 「→」ボタンで次工程へ ／ カードをタップでワークスペースを開く
-        ／ <span className="text-amber-600">精算待ち</span> = 完工予定日を超過した案件
+        ／ <span className="text-violet-600">精算中</span> = 入出金精算フェーズ
+        ／ <span className="text-amber-600">期日超過</span> = 完工予定日を超過した未精算案件
+        ／ クローズ・失注は ⋯ メニューから変更
       </p>
     </div>
   );
