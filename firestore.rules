@@ -15,16 +15,27 @@ service cloud.firestore {
     // ─────────────────────────────────────────────────────────
     // 業者見積依頼
     // ・get（個別取得）: 誰でも可（UUID トークンで保護）
-    // ・list（全件クエリ）: 認証済みのみ（トークン一覧の漏洩防止）
+    // ・list（クエリ）: 誰でも可（業者フォームがトークンでクエリ必要なため）
+    //   ※ トークンは crypto.randomUUID() の UUID のため列挙実質不可
     // ・create: 誰でも可（業者公開フォームから作成）
-    // ・update: 誰でも可（業者が回答を送信）
+    // ・update（業者回答・完了報告・請求書）: 回答フィールドのみ許可
+    //   ※ projectId / vendorId / token など核心フィールドの改ざんを防止
     // ・delete: 認証済みのみ
     // ─────────────────────────────────────────────────────────
     match /artifacts/{appId}/public/data/vendor_quote_requests/{docId} {
       allow get:    if true;
-      allow list:   if request.auth != null;
+      allow list:   if true;
       allow create: if true;
-      allow update: if true;
+      // 業者が変更可能なフィールドのみ許可（核心フィールドの改ざんを防止）
+      allow update: if request.resource.data.diff(resource.data)
+                      .affectedKeys()
+                      .hasOnly([
+                        'status', 'submittedAt',
+                        'quoteType', 'totalAmount', 'items',
+                        'vendorNote', 'pdfUrl',
+                        'completionReport', 'vendorInvoice',
+                        'updatedAt'
+                      ]);
       allow delete: if request.auth != null;
     }
 

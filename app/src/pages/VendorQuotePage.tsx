@@ -8,8 +8,8 @@
  *   - デジタルPDF（テキスト埋め込みあり）: pdfjs-dist → parseItemsFromText
  *   - スキャンPDF / 画像: Gemini API でOCR → 明細をJSONで直接取得
  *
- * Gemini API キー: .env.local の VITE_GEMINI_API_KEY を参照
- * （Cloud Functions 不要・サーバーレスでブラウザから直接呼び出し）
+ * Gemini OCR: Cloud Functions (analyzeVendorDoc) 経由で実行
+ * （APIキーはサーバー側の Firebase Secret Manager に保管・ブラウザには露出しない）
  */
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -64,8 +64,7 @@ async function uploadCompletionDoc(file: File, requestId: string): Promise<{ nam
 }
 
 // ─── Gemini OCR（スキャン画像・写真専用） ─────────────────────
-// .env.local の VITE_GEMINI_API_KEY を使い、ブラウザから直接呼び出す
-// Cloud Functions 不要・キーの二重管理なし
+// Cloud Functions (analyzeVendorDoc) 経由で実行。APIキーはサーバー側のみ。
 interface GeminiOcrResult {
   items: VendorQuoteItem[];
   date:  string | null;

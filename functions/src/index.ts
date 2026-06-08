@@ -41,6 +41,16 @@ const db = admin.firestore();
 // ─── アプリIDを環境変数から取得 ───────────────────────────────────
 const APP_ID = functions.config().app?.id ?? 'default';
 
+// ─── HTML エスケープ（メール本文の XSS 防止） ────────────────────
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 // ─── メールトランスポーター（遅延初期化）────────────────────────
 let transporter: nodemailer.Transporter | null = null;
 
@@ -124,8 +134,8 @@ export const onNotificationCreated = functions
               <h2 style="color:#E6C687;margin:0;font-size:16px">住良建設 Genba-SFA</h2>
             </div>
             <div style="background:#111A35;padding:24px;border-radius:0 0 8px 8px;color:#E2E8F0">
-              <h3 style="color:#C5A059;margin-top:0">${notification.title}</h3>
-              <p style="font-size:14px;line-height:1.6">${notification.body}</p>
+              <h3 style="color:#C5A059;margin-top:0">${escapeHtml(notification.title)}</h3>
+              <p style="font-size:14px;line-height:1.6">${escapeHtml(notification.body)}</p>
               <hr style="border-color:#1C2C54;margin:16px 0"/>
               <p style="font-size:12px;color:#6B7280">
                 このメールは Genba-SFA から自動送信されています。<br/>
