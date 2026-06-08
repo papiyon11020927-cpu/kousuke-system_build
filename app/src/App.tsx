@@ -499,6 +499,7 @@ export default function App() {
           <PipelinePage
             projects={projects}
             customers={customers}
+            estimates={estimates}
             contracts={contracts}
             currentRole={currentRole}
             currentUserName={user?.displayName ?? ''}

@@ -19,6 +19,7 @@ import type {
 } from '@/types';
 import { saveCustomer }  from '@/services/customerService';
 import { saveProject, updateProjectStatus, setLostReason, approveProjectCreation } from '@/services/projectService';
+import { validateStatusTransition } from '@/utils/statusValidation';
 import { saveEstimate, submitForApproval, approveEstimate, rejectEstimate, revertEstimateToDraft, deleteEstimate } from '@/services/estimateService';
 import { createVendorQuoteRequest, updateVendorQuoteStatus, deleteVendorQuoteRequest,
   setVendorPaymentDueDate, markVendorPaid, unmarkVendorPaid, saveVendorReceiptSignature,
@@ -841,12 +842,14 @@ function AddProjectDialog({
 // ─────────────────────────────────────────────────────────────
 
 function EditProjectDialog({
-  project, staffList, onClose, onSaved,
+  project, staffList, projectEstimates, projectContracts, onClose, onSaved,
 }: {
-  project:   Project;
-  staffList: string[];
-  onClose:   () => void;
-  onSaved:   (msg: string) => void;
+  project:          Project;
+  staffList:        string[];
+  projectEstimates: Estimate[];
+  projectContracts: Contract[];
+  onClose:          () => void;
+  onSaved:          (msg: string) => void;
 }) {
   const [title,        setTitle]        = useState(project.title);
   const [status,       setStatus]       = useState<ProjectStatus>(project.status);
@@ -875,6 +878,11 @@ function EditProjectDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) { setError('案件名を入力してください'); return; }
+    // ステータスが変わる場合はバリデーション
+    if (status !== project.status) {
+      const validation = validateStatusTransition(status, project.status, projectEstimates, projectContracts);
+      if (!validation.ok) { setError(validation.reason ?? 'このステータスへは変更できません'); return; }
+    }
     const amountNum = parseInt(String(amount).replace(/,/g, ''), 10) || 0;
     const budgetNum = parseInt(String(budgetAmount).replace(/,/g, ''), 10) || undefined;
     const probNum   = Math.min(100, Math.max(0, parseInt(probability) || 0));
@@ -927,14 +935,23 @@ function EditProjectDialog({
           <div>
             <label className="text-xs text-gray-400 block mb-1">ステータス</label>
             <div className="flex flex-wrap gap-1.5">
-              {ALL_STATUSES.map(s => (
-                <button key={s} type="button" onClick={() => setStatus(s)}
+              {ALL_STATUSES.map(s => {
+                const v = s !== project.status
+                  ? validateStatusTransition(s, project.status, projectEstimates, projectContracts)
+                  : { ok: true };
+                return (
+                <button key={s} type="button"
+                  onClick={() => { if (v.ok) setStatus(s); else setError(v.reason ?? 'このステータスへは変更できません'); }}
+                  title={v.ok ? undefined : v.reason}
                   className={`px-2.5 py-1 text-xs rounded-lg border transition-colors font-medium ${
-                    status === s ? STATUS_COLOR[s] + ' border-current' : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                    !v.ok && s !== status
+                      ? 'border-gray-800 text-gray-600 cursor-not-allowed opacity-50'
+                      : status === s ? STATUS_COLOR[s] + ' border-current' : 'border-gray-700 text-gray-400 hover:border-gray-500'
                   }`}>
                   {STATUS_LABEL[s]}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -4031,6 +4048,12 @@ export function ProjectWorkspaceModal({
   const [lostReasonTarget, setLostReasonTarget] = useState<ProjectStatus | null>(null);
 
   const handleStatusChange = (s: ProjectStatus) => {
+    // ステータス遷移バリデーション（estimates/contracts はこの案件分のみ渡す）
+    const validation = validateStatusTransition(s, project.status, estimates, contracts);
+    if (!validation.ok) {
+      onShowToast(validation.reason ?? 'このステータスへは変更できません');
+      return;
+    }
     if (s === 'lost') {
       // 失注理由ダイアログを表示
       setLostReasonTarget(s);
@@ -5098,6 +5121,8 @@ function CustomerModal({
         <EditProjectDialog
           project={editingProject}
           staffList={staffList}
+          projectEstimates={estimates.filter(e => e.projectId === editingProject.projectId)}
+          projectContracts={contracts.filter(c => c.projectId === editingProject.projectId)}
           onClose={() => setEditingProject(null)}
           onSaved={msg => { onShowToast(msg); setEditingProject(null); }}
         />

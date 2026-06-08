@@ -15,8 +15,9 @@ import {
   LucideLayoutDashboard, LucideChevronRight, LucideCheck, LucideUser,
   LucideMic, LucideSquare, LucideAlertTriangle, LucideClock,
 } from 'lucide-react';
-import type { Project, Customer, Contract, ProjectStatus, UserRole } from '@/types';
+import type { Project, Customer, Estimate, Contract, ProjectStatus, UserRole } from '@/types';
 import { updateProjectStatus, setLostReason } from '@/services/projectService';
+import { validateStatusTransition } from '@/utils/statusValidation';
 
 // ─── 定数 ────────────────────────────────────────────────────────
 
@@ -370,6 +371,7 @@ function KanbanColumn({
 interface Props {
   projects:        Project[];
   customers:       Customer[];
+  estimates:       Estimate[];
   contracts:       Contract[];
   currentRole:     UserRole;
   currentUserName: string;
@@ -380,7 +382,7 @@ interface Props {
 }
 
 export default function PipelinePage({
-  projects, customers, contracts,
+  projects, customers, estimates, contracts,
   currentRole, currentUserName, staffList, onShowToast, onCardClick,
 }: Props) {
   const isManagerLike = currentRole === 'manager' || currentRole === 'admin';
@@ -477,6 +479,16 @@ export default function PipelinePage({
   const handleStatusChange = (projectId: string, newStatus: ProjectStatus) => {
     const p = projects.find(x => x.projectId === projectId);
     if (!p || p.status === newStatus) return;
+
+    // ステータス遷移バリデーション
+    const projEstimates = estimates.filter(e => e.projectId === projectId);
+    const projContracts = contracts.filter(c => c.projectId === projectId);
+    const validation    = validateStatusTransition(newStatus, p.status, projEstimates, projContracts);
+    if (!validation.ok) {
+      onShowToast(validation.reason ?? 'このステータスへは変更できません');
+      return;
+    }
+
     if (newStatus === 'lost') {
       setLostDialog({ projectId, title: p.title });
       return;
