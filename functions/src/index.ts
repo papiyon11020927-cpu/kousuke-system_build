@@ -6,6 +6,7 @@
  * 2. analyzeVendorDoc       — 業者見積書OCR（Gemini・認証不要）
  * 3. geminiAnalyzeReport    — 音声日報解析（Gemini・認証必須）
  * 4. geminiDailySummary     — 日報サマリー生成（Gemini・認証必須）
+ * 5. signCustomerContract   — 顧客契約電子署名（認証不要・admin権限で書き込み）
  *
  * ── Gemini APIキー設定（初回のみ実行） ───────────────────────────
  * firebase functions:secrets:set GEMINI_API_KEY
@@ -311,5 +312,92 @@ export const geminiDailySummary = onCall(
     );
 
     return { summary: result.response.text().trim() };
+  },
+);
+
+// ════════════════════════════════════════════════════════════════════
+// 5. signCustomerContract — 顧客契約電子署名（認証不要・admin権限で書き込み）
+//    公開署名ページから呼び出す。署名保存・案件ステータス更新・
+//    受注金額への契約金額自動反映（積算）をまとめてサーバー側で行う。
+// ════════════════════════════════════════════════════════════════════
+const FLOW_ORDER: Record<string, number> = {
+  lead: 0, estimate: 1, contract: 2, construction: 3,
+  completed: 4, settlement: 5, closed: 6, lost: -1,
+};
+
+export const signCustomerContract = onCall(
+  {
+    region:       'asia-northeast1',
+    maxInstances: 10,
+    invoker:      'public',
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    const { contractId, signatureDataUrl } = request.data as { contractId?: string; signatureDataUrl?: string };
+    if (!contractId || typeof contractId !== 'string') {
+      throw new HttpsError('invalid-argument', 'contractId は必須です');
+    }
+    if (!signatureDataUrl || typeof signatureDataUrl !== 'string' || !signatureDataUrl.startsWith('data:image/')) {
+      throw new HttpsError('invalid-argument', '署名データが不正です');
+    }
+    if (signatureDataUrl.length > 2_000_000) {
+      throw new HttpsError('invalid-argument', '署名データが大きすぎます');
+    }
+
+    const contractRef  = db.doc(`artifacts/${APP_ID}/public/data/contracts/${contractId}`);
+    const contractSnap = await contractRef.get();
+    if (!contractSnap.exists) {
+      throw new HttpsError('not-found', '契約情報が見つかりません');
+    }
+    const contract = contractSnap.data() as {
+      projectId:        string;
+      approvalStatus:   string;
+      signedByCustomer?: boolean;
+      totalAmount?:     number;
+    };
+    if (contract.approvalStatus !== 'approved') {
+      throw new HttpsError('failed-precondition', 'この契約書は署名できる状態ではありません');
+    }
+    if (contract.signedByCustomer) {
+      throw new HttpsError('already-exists', 'この契約書は既に署名済みです');
+    }
+
+    const now = new Date().toISOString();
+    await contractRef.update({
+      customerSignature: signatureDataUrl,
+      signatureAt:       now,
+      signedByCustomer:  true,
+      status:            'signed',
+      updatedAt:         now,
+    });
+
+    // 案件への反映（既に契約フェーズ以降に進んでいる場合はステータスを変更しない）
+    const projectRef  = db.doc(`artifacts/${APP_ID}/public/data/projects/${contract.projectId}`);
+    const projectSnap = await projectRef.get();
+    if (projectSnap.exists) {
+      const currentStatus = (projectSnap.data()?.status as string) ?? 'lead';
+      const projectUpdate: Record<string, unknown> = { updatedAt: now, lastActivityAt: now };
+      if ((FLOW_ORDER[currentStatus] ?? 0) < FLOW_ORDER.contract) {
+        projectUpdate.status      = 'contract';
+        projectUpdate.probability = 100;
+      }
+
+      // 受注金額へ契約金額を自動反映（承認済み・署名済みの全契約を積算）
+      const contractsSnap = await db
+        .collection(`artifacts/${APP_ID}/public/data/contracts`)
+        .where('projectId', '==', contract.projectId)
+        .get();
+      projectUpdate.amount = contractsSnap.docs.reduce((sum, d) => {
+        const c = d.data() as { approvalStatus?: string; status?: string; totalAmount?: number };
+        const status = d.id === contractId ? 'signed' : c.status;
+        return (c.approvalStatus === 'approved' && status === 'signed')
+          ? sum + (c.totalAmount ?? 0)
+          : sum;
+      }, 0);
+
+      await projectRef.update(projectUpdate);
+    }
+
+    return { success: true };
   },
 );

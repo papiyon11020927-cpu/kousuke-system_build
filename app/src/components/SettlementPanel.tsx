@@ -66,13 +66,22 @@ export default function SettlementPanel({
     ['accepted', 'completed'].includes(vq.status ?? ''),
   );
   const allVendorPaid = targetVqs.length === 0 || targetVqs.every(vq => vq.vendorPaid);
-  const canComplete   = allTermsPaid && allVendorPaid && project.status !== 'completed';
+  const canComplete   = allTermsPaid && allVendorPaid && project.status === 'construction';
+  const canClose      = allTermsPaid && allVendorPaid && project.status === 'settlement';
 
   const handleMarkCompleted = async () => {
     if (!window.confirm('すべての入金・支払いが完了しました。\nステータスを「完工」に変更しますか？')) return;
     try {
       await updateProjectStatus(project.projectId, 'completed');
       onShowToast('案件ステータスを「完工」に変更しました');
+    } catch { onShowToast('更新に失敗しました'); }
+  };
+
+  const handleMarkClosed = async () => {
+    if (!window.confirm('精算がすべて完了しました。\nステータスを「クローズ」に変更しますか？')) return;
+    try {
+      await updateProjectStatus(project.projectId, 'closed');
+      onShowToast('案件ステータスを「クローズ」に変更しました');
     } catch { onShowToast('更新に失敗しました'); }
   };
 
@@ -182,6 +191,22 @@ export default function SettlementPanel({
           <button onClick={handleMarkCompleted}
             className="shrink-0 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5">
             <LucideCheck size={11} /> 完工にする
+          </button>
+        </div>
+      )}
+
+      {/* ── クローズバナー ── */}
+      {canClose && (
+        <div className="mx-4 mt-3 bg-teal-900/20 border border-teal-700/40 rounded-xl p-3 flex items-center justify-between gap-4 shrink-0">
+          <div>
+            <p className="text-xs font-bold text-teal-300 flex items-center gap-1.5">
+              <LucideCheck size={12} /> 精算がすべて完了しました
+            </p>
+            <p className="text-[10px] text-teal-600 mt-0.5">案件ステータスをクローズに変更できます</p>
+          </div>
+          <button onClick={handleMarkClosed}
+            className="shrink-0 bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5">
+            <LucideCheck size={11} /> クローズにする
           </button>
         </div>
       )}

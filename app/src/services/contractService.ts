@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
-import { db, APP_ID } from '@/firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, APP_ID, fbFunctions } from '@/firebase/config';
 import type { Contract, PaymentTerm } from '@/types';
 
 const ref = (id: string) => doc(db, 'artifacts', APP_ID, 'public', 'data', 'contracts', id);
@@ -38,18 +39,18 @@ export const saveContract = async (contract: Contract): Promise<void> => {
   }));
 };
 
-export const saveSignature = async (
-  contractId: string,
+/** 公開署名ページからの署名確定（Cloud Function 経由・admin権限）
+ *  署名保存・案件ステータス更新・受注金額への契約金額自動反映（積算）をまとめて行う */
+const signCustomerContractFn = httpsCallable<
+  { contractId: string; signatureDataUrl: string },
+  { success: boolean }
+>(fbFunctions, 'signCustomerContract');
+
+export const signCustomerContract = async (
+  contractId:       string,
   signatureDataUrl: string,
 ): Promise<void> => {
-  const now = new Date().toISOString();
-  await updateDoc(ref(contractId), {
-    customerSignature: signatureDataUrl,
-    signatureAt:       now,
-    signedByCustomer:  true,
-    status:            'signed',
-    updatedAt:         now,
-  });
+  await signCustomerContractFn({ contractId, signatureDataUrl });
 };
 
 export const submitContractForApproval = async (contractId: string): Promise<void> => {

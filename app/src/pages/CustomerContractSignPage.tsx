@@ -8,8 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LucideBuilding2, LucideCalendar, LucideCheck, LucideFileText, LucidePenLine } from 'lucide-react';
 import type { Contract } from '@/types';
-import { getContractById, saveSignature } from '@/services/contractService';
-import { updateProjectStatus } from '@/services/projectService';
+import { getContractById, signCustomerContract } from '@/services/contractService';
 
 export default function CustomerContractSignPage({ contractId }: { contractId: string }) {
   const [contract,   setContract]   = useState<Contract | null>(null);
@@ -85,12 +84,16 @@ export default function CustomerContractSignPage({ contractId }: { contractId: s
     setSubmitting(true);
     try {
       const dataUrl = canvasRef.current!.toDataURL('image/png');
-      await saveSignature(contract.contractId, dataUrl);
-      // 署名完了 → 案件ステータスを「契約済」へ自動更新（失敗しても署名自体は保存済み）
-      await updateProjectStatus(contract.projectId, 'contract').catch(() => {});
+      // 署名保存・案件ステータス更新・受注金額への契約金額自動反映（積算）をまとめてサーバー側で実行
+      await signCustomerContract(contract.contractId, dataUrl);
       setSigned(true);
-    } catch {
-      alert('署名の送信に失敗しました。もう一度お試しください。');
+    } catch (e) {
+      // 既に署名済みの場合はエラーではなく完了表示にする（二重送信対策）
+      if ((e as { code?: string })?.code === 'functions/already-exists') {
+        setSigned(true);
+      } else {
+        alert('署名の送信に失敗しました。もう一度お試しください。');
+      }
     } finally {
       setSubmitting(false);
     }
