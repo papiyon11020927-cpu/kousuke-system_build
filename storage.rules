@@ -27,6 +27,18 @@ service firebase.storage {
     }
 
     // ─────────────────────────────────────────────────────────
+    // 業者請求書（写真・PDF）
+    // ・write: 非認証可（業者がアップロード）、8MB/画像orPDF限定
+    // ・read:  認証済みのみ
+    // ─────────────────────────────────────────────────────────
+    match /vendor-invoices/{requestId}/{filename} {
+      allow write: if request.resource.size < 8 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType == 'application/pdf');
+      allow read: if request.auth != null;
+    }
+
+    // ─────────────────────────────────────────────────────────
     // アプリ配下のストレージ
     // ─────────────────────────────────────────────────────────
     match /artifacts/{appId}/{allPaths=**} {

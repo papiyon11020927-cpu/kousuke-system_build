@@ -296,8 +296,8 @@ export default function App() {
               </span>
             </div>
 
-            {/* manager/admin: スタッフ選択ドロップダウン */}
-            {isManagerLike && staffList.length > 0 && (
+            {/* スーパー管理者のみ: スタッフ選択ドロップダウン */}
+            {currentRole === 'admin' && staffList.length > 0 && (
               <select
                 value={selectedStaff}
                 onChange={e => setSelectedStaff(e.target.value)}

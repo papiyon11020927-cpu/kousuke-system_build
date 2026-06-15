@@ -22,7 +22,8 @@ import {
 import type { VendorQuoteRequest, VendorQuoteItem } from '@/types';
 import {
   getVendorQuoteByToken, submitVendorQuote, uploadVendorQuotePdf,
-  submitCompletionReport,
+  submitCompletionReport, recordVendorInvoice,
+  uploadVendorPhoto, uploadVendorDoc,
 } from '@/services/vendorQuoteService';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
@@ -324,6 +325,16 @@ export default function VendorQuotePage({ token }: Props) {
   const [reportSubmitted,  setReportSubmitted]  = useState(false);
   const [reportError,      setReportError]      = useState('');
 
+  // ─── 請求書提出フォーム（検収書発行後の業者向け） ────────────
+  const [invoicePhotoFiles, setInvoicePhotoFiles] = useState<{ file: File; preview: string }[]>([]);
+  const [invoiceDocs,       setInvoiceDocs]       = useState<File[]>([]);
+  const [invoiceAmount,     setInvoiceAmount]     = useState('');
+  const [invoiceNotes,      setInvoiceNotes]      = useState('');
+  const [invoiceSubmitting, setInvoiceSubmitting] = useState(false);
+  const [invoiceUploadProgress, setInvoiceUploadProgress] = useState('');
+  const [invoiceSubmitted,  setInvoiceSubmitted]  = useState(false);
+  const [invoiceError,      setInvoiceError]      = useState('');
+
   // ─── トークンで依頼を取得 ────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -531,6 +542,8 @@ export default function VendorQuotePage({ token }: Props) {
   if (submitted && submittedData) {
     const isAccepted = request.status === 'accepted';
     const alreadyReportedOnLoad = !!request.completionReport;
+    const hasAcceptanceCert = !!request.acceptanceCert;
+    const alreadyInvoicedOnLoad = !!request.vendorInvoice;
 
     // 完了報告書の送信ハンドラ
     const handleSubmitReport = async () => {
@@ -582,6 +595,58 @@ export default function VendorQuotePage({ token }: Props) {
         return;
       }
       setReportDocs(prev => [...prev, ...files].slice(0, 3));
+      e.target.value = '';
+    };
+
+    // 請求書の送信ハンドラ
+    const handleSubmitInvoice = async () => {
+      if (invoicePhotoFiles.length === 0 && invoiceDocs.length === 0) {
+        setInvoiceError('請求書の写真またはPDFを添付してください');
+        return;
+      }
+      setInvoiceSubmitting(true);
+      setInvoiceError('');
+      try {
+        setInvoiceUploadProgress('写真をアップロード中...');
+        const photoUrls = await Promise.all(
+          invoicePhotoFiles.map((p, i) => uploadVendorPhoto(p.file, `vendor-invoices/${request.requestId}`, i))
+        );
+        setInvoiceUploadProgress('書類をアップロード中...');
+        const docUrls = await Promise.all(
+          invoiceDocs.map(f => uploadVendorDoc(f, `vendor-invoices/${request.requestId}`))
+        );
+        setInvoiceUploadProgress('送信中...');
+        await recordVendorInvoice(request.requestId, {
+          photoUrls,
+          docUrls,
+          amount:       invoiceAmount ? Number(invoiceAmount) : undefined,
+          notes:        invoiceNotes,
+          receivedAt:   new Date().toISOString(),
+          submittedVia: 'vendor',
+        });
+        setInvoiceSubmitted(true);
+      } catch {
+        setInvoiceError('送信に失敗しました。時間をおいて再度お試しください。');
+      } finally {
+        setInvoiceSubmitting(false);
+        setInvoiceUploadProgress('');
+      }
+    };
+
+    const addInvoicePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      const previews = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+      setInvoicePhotoFiles(prev => [...prev, ...previews].slice(0, 8));
+      e.target.value = '';
+    };
+
+    const addInvoiceDoc = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []).filter(f => f.type === 'application/pdf');
+      if (files.some(f => f.size > 8 * 1024 * 1024)) {
+        setInvoiceError('PDFは8MB以内にしてください');
+        return;
+      }
+      setInvoiceDocs(prev => [...prev, ...files].slice(0, 3));
       e.target.value = '';
     };
 
@@ -739,6 +804,135 @@ export default function VendorQuotePage({ token }: Props) {
                 {reportSubmitting
                   ? <><LucideActivity size={14} className="animate-spin" /> {reportUploadProgress || '送信中...'}</>
                   : <><LucideCheck size={14} /> 工事完了報告書を提出する</>
+                }
+              </button>
+            </div>
+          )
+        )}
+
+        {/* 請求書提出フォーム（検収書発行後のみ表示） */}
+        {hasAcceptanceCert && (
+          alreadyInvoicedOnLoad || invoiceSubmitted ? (
+            <div className="bg-[#111A35] border border-blue-700/30 rounded-xl p-6 max-w-md w-full text-center space-y-3">
+              <LucideCheck size={32} className="text-blue-400 mx-auto" />
+              <h3 className="text-base font-bold text-white">請求書を提出済みです</h3>
+              <p className="text-xs text-gray-400">
+                担当者が内容を確認後、お支払いを行います。
+              </p>
+            </div>
+          ) : (
+            <div className="bg-[#111A35] border border-[#C5A059]/40 rounded-xl p-6 max-w-md w-full space-y-4">
+              <div className="text-center">
+                <h3 className="text-base font-bold text-white">請求書のご提出</h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  検収が完了しました。請求書の写真またはPDFをご提出ください。
+                </p>
+              </div>
+
+              {/* 請求書写真 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-[#C5A059] flex items-center gap-1.5">
+                    <LucideCamera size={14} /> 請求書写真
+                    <span className="text-[10px] text-gray-500 font-normal">（最大8枚・自動圧縮）</span>
+                  </span>
+                  {invoicePhotoFiles.length < 8 && (
+                    <label className="cursor-pointer text-xs text-[#C5A059] hover:text-[#E6C687] border border-[#C5A059]/40 px-2.5 py-1 rounded-lg transition-colors">
+                      ＋ 写真を追加
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={addInvoicePhoto} />
+                    </label>
+                  )}
+                </div>
+                {invoicePhotoFiles.length > 0 ? (
+                  <div className="grid grid-cols-4 gap-2">
+                    {invoicePhotoFiles.map((p, pi) => (
+                      <div key={pi} className="relative aspect-square">
+                        <img src={p.preview} alt="" className="h-full w-full object-cover rounded-lg border border-gray-700" />
+                        <button onClick={() => setInvoicePhotoFiles(prev => prev.filter((_, i) => i !== pi))}
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold shadow">
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center gap-2 py-6 border border-dashed border-gray-700 rounded-lg cursor-pointer hover:border-[#C5A059]/50 transition-colors">
+                    <LucideImage size={24} className="text-gray-600" />
+                    <span className="text-xs text-gray-500">タップして写真を選択</span>
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={addInvoicePhoto} />
+                  </label>
+                )}
+              </div>
+
+              {/* 書類添付（PDF） */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-400 flex items-center gap-1.5">
+                    <LucidePaperclip size={14} /> 書類添付
+                    <span className="text-[10px] text-gray-500 font-normal">（PDF・最大3ファイル・8MB以内）</span>
+                  </span>
+                  {invoiceDocs.length < 3 && (
+                    <label className="cursor-pointer text-xs text-blue-400 hover:text-blue-300 border border-blue-700/40 px-2.5 py-1 rounded-lg transition-colors">
+                      ＋ PDF を追加
+                      <input type="file" accept="application/pdf" multiple className="hidden" onChange={addInvoiceDoc} />
+                    </label>
+                  )}
+                </div>
+                {invoiceDocs.length > 0 && (
+                  <div className="space-y-1.5">
+                    {invoiceDocs.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-blue-950/20 border border-blue-700/30 rounded-lg px-3 py-2">
+                        <LucideFileText size={14} className="text-blue-400 shrink-0" />
+                        <span className="flex-1 text-xs text-white truncate">{f.name}</span>
+                        <span className="text-[10px] text-gray-500 shrink-0">{(f.size/1024/1024).toFixed(1)}MB</span>
+                        <button onClick={() => setInvoiceDocs(prev => prev.filter((_, j) => j !== i))}
+                          className="text-gray-500 hover:text-red-400 transition-colors">
+                          <LucideX size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 請求金額 */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">請求金額（任意）</label>
+                <input
+                  type="number"
+                  value={invoiceAmount}
+                  onChange={e => setInvoiceAmount(e.target.value)}
+                  placeholder="例: 500000"
+                  className="w-full bg-[#0A0F1D] border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 placeholder-gray-600 focus:outline-none focus:border-[#C5A059]/60"
+                />
+              </div>
+
+              {/* メモ */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">備考</label>
+                <textarea
+                  value={invoiceNotes}
+                  onChange={e => setInvoiceNotes(e.target.value)}
+                  placeholder="請求内容に関する補足事項など"
+                  rows={3}
+                  className="w-full bg-[#0A0F1D] border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 resize-none placeholder-gray-600 focus:outline-none focus:border-[#C5A059]/60"
+                />
+              </div>
+
+              {invoiceError && (
+                <p className="text-xs text-red-400 flex items-center gap-1">
+                  <LucideAlertCircle size={12} /> {invoiceError}
+                </p>
+              )}
+
+              <button
+                onClick={handleSubmitInvoice}
+                disabled={invoiceSubmitting}
+                className="w-full bg-[#C5A059] hover:bg-[#E6C687] text-[#0A0F1D] font-bold py-3 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+              >
+                {invoiceSubmitting
+                  ? <><LucideActivity size={14} className="animate-spin" /> {invoiceUploadProgress || '送信中...'}</>
+                  : <><LucideCheck size={14} /> 請求書を提出する</>
                 }
               </button>
             </div>

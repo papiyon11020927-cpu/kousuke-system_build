@@ -359,8 +359,6 @@ export interface VendorQuoteRequest {
   vendorPaymentDueDate?:    string;   // 業者支払い予定日 YYYY-MM-DD
   vendorPaid?:              boolean;  // 業者支払い済み
   vendorPaidAt?:            string;   // 業者支払い日 YYYY-MM-DD
-  vendorReceiptSignature?:  string;   // 受領署名 base64 PNG
-  vendorReceiptSignedAt?:   string;   // 受領署名日時 ISO
   // ── 精算ワークフロー（工事完了 → 検収 → 請求 → 支払） ──
   completionReport?: {
     photoUrls:    string[];           // Firebase Storage URLs（WebP 圧縮済み）
@@ -380,10 +378,12 @@ export interface VendorQuoteRequest {
     issuedBy: string;
   };
   vendorInvoice?: {
-    photos:     string[];  // 請求書写真 base64
-    amount?:    number;
-    notes?:     string;
-    receivedAt: string;
+    photoUrls:    string[];           // Firebase Storage URLs（WebP 圧縮済み）
+    docUrls:      { name: string; url: string; sizeMb: number }[];  // 添付PDF
+    amount?:      number;
+    notes:        string;
+    receivedAt:   string;             // ISO 8601
+    submittedVia: 'vendor' | 'staff'; // 業者提出 or スタッフ代理記録
   };
 }
 

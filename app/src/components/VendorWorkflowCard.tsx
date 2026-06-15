@@ -8,16 +8,16 @@
 import { useState } from 'react';
 import {
   LucideCheck, LucideBuilding2, LucideFileText, LucideRefreshCw,
-  LucideChevronDown, LucideCamera, LucideLink,
+  LucideChevronDown, LucideCamera, LucideLink, LucidePaperclip, LucideX,
 } from 'lucide-react';
 import type { VendorQuoteRequest, Project } from '@/types';
 import {
   markVendorPaid, unmarkVendorPaid,
   submitCompletionReport, recordInspectionResult,
   issueAcceptanceCert, recordVendorInvoice,
+  uploadVendorPhoto, uploadVendorDoc,
 } from '@/services/vendorQuoteService';
 import { openPrintPreview } from '@/services/documentService';
-import VendorReceiptSignatureDialog from './VendorReceiptSignatureDialog';
 
 // ─── 画像圧縮ユーティリティ ─────────────────────────────────
 async function compressImageToBase64(
@@ -163,18 +163,19 @@ export default function VendorWorkflowCard({
   onOrderForm:     (vq: VendorQuoteRequest) => void;
 }) {
   const step = getVendorWorkflowStep(vq);
-  const [openStep,    setOpenStep]    = useState<number | null>(step < 5 ? step : null);
-  const [loading,     setLoading]     = useState(false);
-  const [receiptSign, setReceiptSign] = useState(false);
+  const [openStep, setOpenStep] = useState<number | null>(step < 5 ? step : null);
+  const [loading,  setLoading]  = useState(false);
 
   // フォーム状態
   const [reportPhotos, setReportPhotos] = useState<string[]>([]);
   const [reportNotes,  setReportNotes]  = useState('');
   const [inspResult,   setInspResult]   = useState<'pass' | 'fail'>('pass');
   const [inspNotes,    setInspNotes]    = useState('');
-  const [invPhotos,    setInvPhotos]    = useState<string[]>([]);
-  const [invAmount,    setInvAmount]    = useState('');
-  const [invNotes,     setInvNotes]     = useState('');
+  const [invPhotoFiles, setInvPhotoFiles] = useState<{ file: File; preview: string }[]>([]);
+  const [invDocs,        setInvDocs]      = useState<File[]>([]);
+  const [invAmount,      setInvAmount]    = useState('');
+  const [invNotes,       setInvNotes]     = useState('');
+  const [invUploadProgress, setInvUploadProgress] = useState('');
   const [payDate,      setPayDate]      = useState(new Date().toISOString().split('T')[0]);
 
   const vendorUrl = `${window.location.origin}/?token=${vq.token}`;
@@ -193,6 +194,20 @@ export default function VendorWorkflowCard({
 
   const copyVendorUrl = () => {
     navigator.clipboard.writeText(vendorUrl).then(() => onShowToast('業者用URLをコピーしました'));
+  };
+
+  const addInvoicePhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    const previews = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+    setInvPhotoFiles(prev => [...prev, ...previews].slice(0, 5));
+    e.target.value = '';
+  };
+
+  const addInvoiceDocs = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).filter(f => f.type === 'application/pdf');
+    if (files.some(f => f.size > 8 * 1024 * 1024)) { onShowToast('PDFは8MB以内にしてください'); return; }
+    setInvDocs(prev => [...prev, ...files].slice(0, 3));
+    e.target.value = '';
   };
 
   // ── アクションハンドラ ──────────────────────────────────────
@@ -239,18 +254,26 @@ export default function VendorWorkflowCard({
   };
 
   const doRecordInvoice = async () => {
-    if (!invNotes.trim() && invPhotos.length === 0) { onShowToast('メモまたは写真を追加してください'); return; }
+    if (invPhotoFiles.length === 0 && invDocs.length === 0) { onShowToast('請求書の写真またはPDFを追加してください'); return; }
     setLoading(true);
     try {
+      setInvUploadProgress('写真をアップロード中...');
+      const photoUrls = await Promise.all(
+        invPhotoFiles.map((p, i) => uploadVendorPhoto(p.file, `vendor-invoices/${vq.requestId}`, i))
+      );
+      setInvUploadProgress('書類をアップロード中...');
+      const docUrls = await Promise.all(
+        invDocs.map(f => uploadVendorDoc(f, `vendor-invoices/${vq.requestId}`))
+      );
       await recordVendorInvoice(vq.requestId, {
-        photos: invPhotos,
+        photoUrls, docUrls,
         amount: invAmount ? Number(invAmount.replace(/,/g, '')) : undefined,
-        notes: invNotes, receivedAt: new Date().toISOString(),
+        notes: invNotes, receivedAt: new Date().toISOString(), submittedVia: 'staff',
       });
       onShowToast('請求書を受領記録しました');
-      setOpenStep(4); setInvPhotos([]); setInvAmount(''); setInvNotes('');
+      setOpenStep(4); setInvPhotoFiles([]); setInvDocs([]); setInvAmount(''); setInvNotes('');
     } catch { onShowToast('記録に失敗しました'); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setInvUploadProgress(''); }
   };
 
   const doMarkPaid = async () => {
@@ -461,30 +484,84 @@ export default function VendorWorkflowCard({
                   {i === 3 && isDone && vq.vendorInvoice && (
                     <div className="space-y-2 py-2">
                       <p className="text-[10px] text-gray-400">
-                        受領: {new Date(vq.vendorInvoice.receivedAt).toLocaleDateString('ja-JP')}
+                        {vq.vendorInvoice.submittedVia === 'vendor' ? '業者が提出' : 'スタッフが記録'}
+                        {' · '}{new Date(vq.vendorInvoice.receivedAt).toLocaleDateString('ja-JP')}
                         {vq.vendorInvoice.amount && ` · ¥${vq.vendorInvoice.amount.toLocaleString()}`}
                       </p>
                       {vq.vendorInvoice.notes && (
                         <p className="text-[11px] text-gray-300 bg-gray-900/50 rounded-lg px-3 py-2">{vq.vendorInvoice.notes}</p>
                       )}
-                      {vq.vendorInvoice.photos.length > 0 && (
-                        <div className="flex gap-2 flex-wrap">
-                          {vq.vendorInvoice.photos.map((p, pi) => (
-                            <img key={pi} src={p} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-700" />
+                      {(vq.vendorInvoice.photoUrls?.length ?? 0) > 0 && (
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {vq.vendorInvoice.photoUrls!.map((url, pi) => (
+                            <a key={pi} href={url} target="_blank" rel="noopener noreferrer">
+                              <img src={url} alt="" className="h-16 w-full object-cover rounded-lg border border-gray-700 hover:opacity-80 transition-opacity" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      {(vq.vendorInvoice.docUrls?.length ?? 0) > 0 && (
+                        <div className="space-y-1">
+                          {vq.vendorInvoice.docUrls!.map((doc, di) => (
+                            <a key={di} href={doc.url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-2 bg-blue-950/20 border border-blue-700/30 rounded-lg px-3 py-1.5 hover:border-blue-500/50 transition-colors">
+                              <LucideFileText size={12} className="text-blue-400 shrink-0" />
+                              <span className="flex-1 text-[11px] text-white truncate">{doc.name}</span>
+                              <span className="text-[10px] text-gray-500 shrink-0">{doc.sizeMb}MB</span>
+                            </a>
                           ))}
                         </div>
                       )}
                     </div>
                   )}
                   {i === 3 && !isDone && (
-                    <div className="space-y-2 py-2">
+                    <div className="space-y-3 py-2">
+                      <div className="bg-blue-950/20 border border-blue-700/20 rounded-lg px-3 py-2.5">
+                        <p className="text-[10px] text-blue-300 mb-1.5 font-medium">業者がフォームから直接提出できます</p>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 text-[9px] text-gray-400 truncate">{vendorUrl}</code>
+                          <button onClick={copyVendorUrl}
+                            className="shrink-0 text-[10px] text-blue-400 hover:text-blue-300 border border-blue-700/40 px-2 py-0.5 rounded transition-colors flex items-center gap-1">
+                            <LucideLink size={9} /> コピー
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-gray-500">または手動で記録する：</p>
                       <label className="flex items-center gap-2 text-[10px] text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
-                        <LucideCamera size={11} className="text-blue-400" /> 請求書の写真（最大3枚）
-                        <input type="file" accept="image/*" multiple className="hidden"
-                          onChange={e => addPhotos(e, setInvPhotos)} />
+                        <LucideCamera size={11} className="text-blue-400" /> 請求書の写真を追加（最大5枚）
+                        <input type="file" accept="image/*" multiple className="hidden" onChange={addInvoicePhotos} />
                       </label>
-                      {invPhotos.length > 0 && (
-                        <PhotoRow photos={invPhotos} onRemove={i2 => setInvPhotos(p => p.filter((_, idx) => idx !== i2))} />
+                      {invPhotoFiles.length > 0 && (
+                        <div className="flex gap-2 flex-wrap">
+                          {invPhotoFiles.map((p, pi) => (
+                            <div key={pi} className="relative">
+                              <img src={p.preview} alt="" className="h-14 w-14 object-cover rounded-lg border border-gray-700" />
+                              <button onClick={() => setInvPhotoFiles(prev => prev.filter((_, idx) => idx !== pi))}
+                                className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-600 text-white flex items-center justify-center text-[8px] leading-none">
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <label className="flex items-center gap-2 text-[10px] text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                        <LucidePaperclip size={11} className="text-blue-400" /> PDFを追加（最大3ファイル・8MB以内）
+                        <input type="file" accept="application/pdf" multiple className="hidden" onChange={addInvoiceDocs} />
+                      </label>
+                      {invDocs.length > 0 && (
+                        <div className="space-y-1">
+                          {invDocs.map((f, di) => (
+                            <div key={di} className="flex items-center gap-2 bg-blue-950/20 border border-blue-700/30 rounded-lg px-3 py-1.5">
+                              <LucideFileText size={12} className="text-blue-400 shrink-0" />
+                              <span className="flex-1 text-[11px] text-white truncate">{f.name}</span>
+                              <span className="text-[10px] text-gray-500 shrink-0">{(f.size/1024/1024).toFixed(1)}MB</span>
+                              <button onClick={() => setInvDocs(prev => prev.filter((_, idx) => idx !== di))}
+                                className="text-gray-500 hover:text-red-400 transition-colors">
+                                <LucideX size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       )}
                       <input type="text" value={invAmount} onChange={e => setInvAmount(e.target.value)}
                         placeholder="請求金額（任意・確認用）"
@@ -494,7 +571,7 @@ export default function VendorWorkflowCard({
                         className="w-full bg-[#0A0F1D] border border-gray-700 text-white text-[11px] rounded-lg px-3 py-2 resize-none placeholder-gray-600" />
                       <button onClick={doRecordInvoice} disabled={loading}
                         className="w-full text-[11px] bg-[#C5A059] hover:bg-[#E6C687] text-[#0A0F1D] font-bold py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                        {loading ? <LucideRefreshCw size={10} className="animate-spin" /> : <LucideCheck size={10} />} 請求書受領を記録する
+                        {loading ? <LucideRefreshCw size={10} className="animate-spin" /> : <LucideCheck size={10} />} {invUploadProgress || '請求書受領を記録する'}
                       </button>
                     </div>
                   )}
@@ -511,14 +588,6 @@ export default function VendorWorkflowCard({
                           取消
                         </button>
                       </div>
-                      {vq.vendorReceiptSignature && (
-                        <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-700/30 rounded-lg px-3 py-1.5">
-                          <img src={vq.vendorReceiptSignature} alt="受領署名" className="h-8 bg-white rounded border border-gray-300" />
-                          <span className="text-[10px] text-emerald-400">
-                            受領署名済み {vq.vendorReceiptSignedAt?.split('T')[0]}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   )}
                   {i === 4 && !isDone && (
@@ -534,10 +603,6 @@ export default function VendorWorkflowCard({
                       {vq.vendorPaymentDueDate && (
                         <p className="text-[10px] text-gray-500">支払予定日: {vq.vendorPaymentDueDate}</p>
                       )}
-                      <button onClick={() => setReceiptSign(true)}
-                        className="w-full text-[10px] border border-dashed border-orange-700/40 text-orange-400 hover:border-orange-500 hover:text-orange-300 py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5">
-                        <LucideFileText size={11} /> 受領署名を取得して支払済にする
-                      </button>
                     </div>
                   )}
                 </div>
@@ -546,15 +611,6 @@ export default function VendorWorkflowCard({
           );
         })}
       </div>
-
-      {/* 受領署名ダイアログ */}
-      {receiptSign && (
-        <VendorReceiptSignatureDialog
-          req={vq}
-          onClose={() => setReceiptSign(false)}
-          onSaved={msg => { onShowToast(msg); setReceiptSign(false); }}
-        />
-      )}
     </div>
   );
 }

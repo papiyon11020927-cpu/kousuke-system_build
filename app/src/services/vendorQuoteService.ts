@@ -149,21 +149,6 @@ export const unmarkVendorPaid = async (requestId: string): Promise<void> => {
   });
 };
 
-// ─── 業者受領署名を記録（署名と同時に支払い済みにする） ─────
-export const saveVendorReceiptSignature = async (
-  requestId:        string,
-  signatureDataUrl: string,
-  paidAt:           string,
-): Promise<void> => {
-  await updateDoc(docRef(requestId), {
-    vendorReceiptSignature: signatureDataUrl,
-    vendorReceiptSignedAt:  new Date().toISOString(),
-    vendorPaid:             true,
-    vendorPaidAt:           paidAt,
-    updatedAt:              new Date().toISOString(),
-  });
-};
-
 // ─── 工事完了報告書の記録（業者 or スタッフ代理） ────────────
 export const submitCompletionReport = async (
   requestId: string,
@@ -203,13 +188,53 @@ export const issueAcceptanceCert = async (
   });
 };
 
-// ─── 請求書受領の記録 ─────────────────────────────────────────
+// ─── 請求書受領の記録（業者 or スタッフ代理） ──────────────────
 export const recordVendorInvoice = async (
   requestId: string,
-  invoice: { photos: string[]; amount?: number; notes?: string; receivedAt: string },
+  invoice: {
+    photoUrls:    string[];
+    docUrls:      { name: string; url: string; sizeMb: number }[];
+    amount?:      number;
+    notes:        string;
+    receivedAt:   string;
+    submittedVia: 'vendor' | 'staff';
+  },
 ): Promise<void> => {
   await updateDoc(docRef(requestId), {
-    vendorInvoice: invoice,
+    vendorInvoice: stripUndefined(invoice),
     updatedAt: new Date().toISOString(),
   });
+};
+
+// ─── 写真を WebP に圧縮して Firebase Storage にアップロード → URL を返す ───
+export const uploadVendorPhoto = async (file: File, folder: string, idx: number): Promise<string> => {
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onerror = reject;
+    img.onload = () => {
+      const MAX_W = 1280;
+      const scale = Math.min(1, MAX_W / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(b => {
+        URL.revokeObjectURL(url);
+        b ? resolve(b) : reject(new Error('toBlob failed'));
+      }, 'image/webp', 0.75);
+    };
+    img.src = url;
+  });
+  const ref = storageRef(storage, `${folder}/photo_${idx}_${Date.now()}.webp`);
+  await uploadBytes(ref, blob, { contentType: 'image/webp' });
+  return getDownloadURL(ref);
+};
+
+// ─── PDF を Firebase Storage にアップロード → {name, url, sizeMb} を返す ───
+export const uploadVendorDoc = async (file: File, folder: string): Promise<{ name: string; url: string; sizeMb: number }> => {
+  const ref = storageRef(storage, `${folder}/doc_${Date.now()}_${file.name}`);
+  await uploadBytes(ref, file, { contentType: 'application/pdf' });
+  const url = await getDownloadURL(ref);
+  return { name: file.name, url, sizeMb: Math.round(file.size / 1024 / 1024 * 10) / 10 };
 };
