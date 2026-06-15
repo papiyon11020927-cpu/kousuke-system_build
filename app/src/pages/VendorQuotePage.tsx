@@ -23,7 +23,7 @@ import type { VendorQuoteRequest, VendorQuoteItem } from '@/types';
 import {
   getVendorQuoteByToken, submitVendorQuote, uploadVendorQuotePdf,
   submitCompletionReport, recordVendorInvoice,
-  uploadVendorPhoto, uploadVendorDoc,
+  uploadVendorPhoto, uploadVendorDoc, analyzeInvoiceAmount,
 } from '@/services/vendorQuoteService';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
@@ -334,6 +334,9 @@ export default function VendorQuotePage({ token }: Props) {
   const [invoiceUploadProgress, setInvoiceUploadProgress] = useState('');
   const [invoiceSubmitted,  setInvoiceSubmitted]  = useState(false);
   const [invoiceError,      setInvoiceError]      = useState('');
+  // 請求書OCRによる金額自動チェック（注文書金額との一致確認）
+  const [invoiceOcrAmount,  setInvoiceOcrAmount]  = useState<number | null>(null);
+  const [invoiceOcrChecking, setInvoiceOcrChecking] = useState(false);
 
   // ─── トークンで依頼を取得 ────────────────────────────────────
   useEffect(() => {
@@ -620,6 +623,7 @@ export default function VendorQuotePage({ token }: Props) {
           photoUrls,
           docUrls,
           amount:       invoiceAmount ? Number(invoiceAmount) : undefined,
+          ocrAmount:    invoiceOcrAmount ?? undefined,
           notes:        invoiceNotes,
           receivedAt:   new Date().toISOString(),
           submittedVia: 'vendor',
@@ -633,10 +637,24 @@ export default function VendorQuotePage({ token }: Props) {
       }
     };
 
+    // 添付ファイルの金額をOCRで自動読み取りし、注文書の金額と照合する（最初の1ファイルのみ）
+    const checkInvoiceAmount = async (file: File) => {
+      setInvoiceOcrChecking(true);
+      try {
+        const amount = await analyzeInvoiceAmount(file);
+        setInvoiceOcrAmount(amount);
+        if (amount && !invoiceAmount) setInvoiceAmount(String(amount));
+      } finally {
+        setInvoiceOcrChecking(false);
+      }
+    };
+
     const addInvoicePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? []);
       const previews = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+      const isFirstFile = invoicePhotoFiles.length === 0 && invoiceDocs.length === 0;
       setInvoicePhotoFiles(prev => [...prev, ...previews].slice(0, 8));
+      if (isFirstFile && files[0]) checkInvoiceAmount(files[0]);
       e.target.value = '';
     };
 
@@ -646,7 +664,9 @@ export default function VendorQuotePage({ token }: Props) {
         setInvoiceError('PDFは8MB以内にしてください');
         return;
       }
+      const isFirstFile = invoicePhotoFiles.length === 0 && invoiceDocs.length === 0;
       setInvoiceDocs(prev => [...prev, ...files].slice(0, 3));
+      if (isFirstFile && files[0]) checkInvoiceAmount(files[0]);
       e.target.value = '';
     };
 
@@ -819,6 +839,20 @@ export default function VendorQuotePage({ token }: Props) {
               <p className="text-xs text-gray-400">
                 担当者が内容を確認後、お支払いを行います。
               </p>
+              {(() => {
+                const ocrAmount = request.vendorInvoice?.ocrAmount ?? (invoiceSubmitted ? invoiceOcrAmount : null);
+                const orderAmount = request.totalAmount ?? 0;
+                if (ocrAmount == null || orderAmount <= 0) return null;
+                return ocrAmount === orderAmount ? (
+                  <p className="text-xs text-emerald-400 flex items-center justify-center gap-1.5">
+                    <LucideCheckCircle2 size={12} /> 注文書の金額（¥{orderAmount.toLocaleString()}）と一致しています
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber-400 flex items-center justify-center gap-1.5">
+                    <LucideAlertCircle size={12} /> 注文書の金額（¥{orderAmount.toLocaleString()}）と異なります（読取金額: ¥{ocrAmount.toLocaleString()}）
+                  </p>
+                );
+              })()}
             </div>
           ) : (
             <div className="bg-[#111A35] border border-[#C5A059]/40 rounded-xl p-6 max-w-md w-full space-y-4">
@@ -906,6 +940,24 @@ export default function VendorQuotePage({ token }: Props) {
                   className="w-full bg-[#0A0F1D] border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 placeholder-gray-600 focus:outline-none focus:border-[#C5A059]/60"
                 />
               </div>
+
+              {/* 注文書金額との一致チェック（OCR自動読み取り） */}
+              {invoiceOcrChecking && (
+                <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                  <LucideActivity size={12} className="animate-spin" /> 請求書の金額を確認しています...
+                </p>
+              )}
+              {!invoiceOcrChecking && invoiceOcrAmount != null && (request.totalAmount ?? 0) > 0 && (
+                invoiceOcrAmount === request.totalAmount ? (
+                  <p className="text-xs text-emerald-400 flex items-center gap-1.5">
+                    <LucideCheckCircle2 size={12} /> 注文書の金額（¥{(request.totalAmount ?? 0).toLocaleString()}）と一致しています
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber-400 flex items-center gap-1.5">
+                    <LucideAlertCircle size={12} /> 注文書の金額（¥{(request.totalAmount ?? 0).toLocaleString()}）と読み取った金額（¥{invoiceOcrAmount.toLocaleString()}）が異なります。ご確認ください。
+                  </p>
+                )
+              )}
 
               {/* メモ */}
               <div>

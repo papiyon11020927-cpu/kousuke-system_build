@@ -3,7 +3,8 @@ import {
   collection, query, where, getDocs,
 } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, APP_ID, getCol, storage } from '@/firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, APP_ID, getCol, storage, fbFunctions } from '@/firebase/config';
 import type { VendorQuoteRequest, VendorQuoteStatus, VendorQuoteItem } from '@/types';
 import { createNotification } from './notificationService';
 
@@ -195,6 +196,7 @@ export const recordVendorInvoice = async (
     photoUrls:    string[];
     docUrls:      { name: string; url: string; sizeMb: number }[];
     amount?:      number;
+    ocrAmount?:   number;
     notes:        string;
     receivedAt:   string;
     submittedVia: 'vendor' | 'staff';
@@ -237,4 +239,68 @@ export const uploadVendorDoc = async (file: File, folder: string): Promise<{ nam
   await uploadBytes(ref, file, { contentType: 'application/pdf' });
   const url = await getDownloadURL(ref);
   return { name: file.name, url, sizeMb: Math.round(file.size / 1024 / 1024 * 10) / 10 };
+};
+
+// ─── 請求書OCR: 添付ファイルから合計金額を抽出（注文金額との一致チェック用） ───
+// Gemini が直接対応する画像形式
+const GEMINI_SUPPORTED_IMAGE_TYPES = new Set([
+  'image/jpeg', 'image/jpg', 'image/png',
+  'image/gif', 'image/webp', 'image/heic', 'image/heif',
+]);
+
+const fileToBase64 = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload  = () => resolve((reader.result as string).split(',')[1]);
+    reader.readAsDataURL(blob);
+  });
+
+/** BMP など Gemini 非対応の画像形式は PNG に変換してから base64 化 */
+const normalizeImageForGemini = (file: File): Promise<{ data: string; mimeType: string }> =>
+  new Promise((resolve, reject) => {
+    if (GEMINI_SUPPORTED_IMAGE_TYPES.has(file.type)) {
+      fileToBase64(file).then(data => resolve({ data, mimeType: file.type })).catch(reject);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d')!.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('画像変換に失敗しました')); return; }
+        fileToBase64(blob).then(data => resolve({ data, mimeType: 'image/png' })).catch(reject);
+      }, 'image/png');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('画像の読み込みに失敗しました')); };
+    img.src = url;
+  });
+
+const analyzeVendorDocFn = httpsCallable<
+  { base64: string; mimeType: string },
+  { items: unknown[]; date: string | null; invoiceTotal: number | null }
+>(fbFunctions, 'analyzeVendorDoc');
+
+/** 請求書PDF・画像をGemini OCRで解析し、合計金額を抽出する（読み取れない場合は null） */
+export const analyzeInvoiceAmount = async (file: File): Promise<number | null> => {
+  try {
+    let base64: string;
+    let mimeType: string;
+    if (file.type === 'application/pdf') {
+      base64 = await fileToBase64(file);
+      mimeType = 'application/pdf';
+    } else if (file.type.startsWith('image/')) {
+      ({ data: base64, mimeType } = await normalizeImageForGemini(file));
+    } else {
+      return null;
+    }
+    const result = await analyzeVendorDocFn({ base64, mimeType });
+    return result.data.invoiceTotal ?? null;
+  } catch {
+    return null;
+  }
 };

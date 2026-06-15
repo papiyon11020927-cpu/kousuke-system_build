@@ -193,13 +193,14 @@ export const analyzeVendorDoc = onCall(
       throw new HttpsError('invalid-argument', '対応していないファイル形式です');
     }
 
-    const prompt = `この見積書・請求書・納品書を解析し、明細データと発行日を抽出してください。
+    const prompt = `この見積書・請求書・納品書を解析し、明細データ・発行日・請求合計金額を抽出してください。
 以下のJSON形式のみで返答してください（説明文不要）:
-{"items":[{"itemName":"品名","quantity":1,"unit":"式","unitPrice":120000,"total":120000}],"date":"2026年5月30日"}
+{"items":[{"itemName":"品名","quantity":1,"unit":"式","unitPrice":120000,"total":120000}],"date":"2026年5月30日","invoiceTotal":1320000}
 ルール:
 - items: 明細・工事内容の行のみ（合計行・小計・消費税・ヘッダー行は含めない）
 - unitPrice/total: 整数（¥マーク・カンマなし）
 - date: "YYYY年M月D日" 形式。なければ null
+- invoiceTotal: 「合計」「請求金額」「ご請求額」「お支払金額」など文書全体の最終金額（税込・整数・¥マークやカンマなし）。なければ null
 - 品名が空または金額不明の行は除外。最大20行
 JSONのみ返してください。`;
 
@@ -221,7 +222,11 @@ JSONのみ返してください。`;
       .trim();
 
     try {
-      const parsed = JSON.parse(raw) as { items?: Partial<VendorQuoteItem>[]; date?: string | null };
+      const parsed = JSON.parse(raw) as {
+        items?: Partial<VendorQuoteItem>[];
+        date?: string | null;
+        invoiceTotal?: number | null;
+      };
       const items: VendorQuoteItem[] = (parsed.items ?? [])
         .filter((it): it is Partial<VendorQuoteItem> => !!it && typeof it.itemName === 'string')
         .map(it => ({
@@ -233,9 +238,12 @@ JSONのみ返してください。`;
         }))
         .filter(it => it.itemName.length > 0 && it.unitPrice > 0)
         .slice(0, 20);
-      return { items, date: typeof parsed.date === 'string' ? parsed.date : null };
+      const invoiceTotal = typeof parsed.invoiceTotal === 'number' && parsed.invoiceTotal > 0
+        ? Math.round(parsed.invoiceTotal)
+        : null;
+      return { items, date: typeof parsed.date === 'string' ? parsed.date : null, invoiceTotal };
     } catch {
-      return { items: [], date: null };
+      return { items: [], date: null, invoiceTotal: null };
     }
   },
 );

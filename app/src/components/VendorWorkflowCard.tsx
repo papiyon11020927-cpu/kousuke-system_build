@@ -9,13 +9,14 @@ import { useState } from 'react';
 import {
   LucideCheck, LucideBuilding2, LucideFileText, LucideRefreshCw,
   LucideChevronDown, LucideCamera, LucideLink, LucidePaperclip, LucideX,
+  LucideAlertCircle, LucideCheckCircle2,
 } from 'lucide-react';
 import type { VendorQuoteRequest, Project } from '@/types';
 import {
   markVendorPaid, unmarkVendorPaid,
   submitCompletionReport, recordInspectionResult,
   issueAcceptanceCert, recordVendorInvoice,
-  uploadVendorPhoto, uploadVendorDoc,
+  uploadVendorPhoto, uploadVendorDoc, analyzeInvoiceAmount,
 } from '@/services/vendorQuoteService';
 import { openPrintPreview } from '@/services/documentService';
 
@@ -176,6 +177,9 @@ export default function VendorWorkflowCard({
   const [invAmount,      setInvAmount]    = useState('');
   const [invNotes,       setInvNotes]     = useState('');
   const [invUploadProgress, setInvUploadProgress] = useState('');
+  // 請求書OCRによる金額自動チェック（注文書金額との一致確認）
+  const [invOcrAmount,   setInvOcrAmount]   = useState<number | null>(null);
+  const [invOcrChecking, setInvOcrChecking] = useState(false);
   const [payDate,      setPayDate]      = useState(new Date().toISOString().split('T')[0]);
 
   const vendorUrl = `${window.location.origin}/?token=${vq.token}`;
@@ -196,17 +200,33 @@ export default function VendorWorkflowCard({
     navigator.clipboard.writeText(vendorUrl).then(() => onShowToast('業者用URLをコピーしました'));
   };
 
+  // 添付ファイルの金額をOCRで自動読み取りし、注文書の金額と照合する（最初の1ファイルのみ）
+  const checkInvoiceAmount = async (file: File) => {
+    setInvOcrChecking(true);
+    try {
+      const amount = await analyzeInvoiceAmount(file);
+      setInvOcrAmount(amount);
+      if (amount && !invAmount) setInvAmount(String(amount));
+    } finally {
+      setInvOcrChecking(false);
+    }
+  };
+
   const addInvoicePhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     const previews = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+    const isFirstFile = invPhotoFiles.length === 0 && invDocs.length === 0;
     setInvPhotoFiles(prev => [...prev, ...previews].slice(0, 5));
+    if (isFirstFile && files[0]) checkInvoiceAmount(files[0]);
     e.target.value = '';
   };
 
   const addInvoiceDocs = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []).filter(f => f.type === 'application/pdf');
     if (files.some(f => f.size > 8 * 1024 * 1024)) { onShowToast('PDFは8MB以内にしてください'); return; }
+    const isFirstFile = invPhotoFiles.length === 0 && invDocs.length === 0;
     setInvDocs(prev => [...prev, ...files].slice(0, 3));
+    if (isFirstFile && files[0]) checkInvoiceAmount(files[0]);
     e.target.value = '';
   };
 
@@ -268,10 +288,11 @@ export default function VendorWorkflowCard({
       await recordVendorInvoice(vq.requestId, {
         photoUrls, docUrls,
         amount: invAmount ? Number(invAmount.replace(/,/g, '')) : undefined,
+        ocrAmount: invOcrAmount ?? undefined,
         notes: invNotes, receivedAt: new Date().toISOString(), submittedVia: 'staff',
       });
       onShowToast('請求書を受領記録しました');
-      setOpenStep(4); setInvPhotoFiles([]); setInvDocs([]); setInvAmount(''); setInvNotes('');
+      setOpenStep(4); setInvPhotoFiles([]); setInvDocs([]); setInvAmount(''); setInvNotes(''); setInvOcrAmount(null);
     } catch { onShowToast('記録に失敗しました'); }
     finally { setLoading(false); setInvUploadProgress(''); }
   };
@@ -488,6 +509,17 @@ export default function VendorWorkflowCard({
                         {' · '}{new Date(vq.vendorInvoice.receivedAt).toLocaleDateString('ja-JP')}
                         {vq.vendorInvoice.amount && ` · ¥${vq.vendorInvoice.amount.toLocaleString()}`}
                       </p>
+                      {vq.vendorInvoice.ocrAmount != null && (vq.totalAmount ?? 0) > 0 && (
+                        vq.vendorInvoice.ocrAmount === vq.totalAmount ? (
+                          <p className="text-[10px] text-emerald-400 flex items-center gap-1.5">
+                            <LucideCheckCircle2 size={11} /> 注文書の金額（¥{(vq.totalAmount ?? 0).toLocaleString()}）と一致しています
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-amber-400 flex items-center gap-1.5">
+                            <LucideAlertCircle size={11} /> 注文書の金額（¥{(vq.totalAmount ?? 0).toLocaleString()}）と異なります（読取金額: ¥{vq.vendorInvoice.ocrAmount.toLocaleString()}）
+                          </p>
+                        )
+                      )}
                       {vq.vendorInvoice.notes && (
                         <p className="text-[11px] text-gray-300 bg-gray-900/50 rounded-lg px-3 py-2">{vq.vendorInvoice.notes}</p>
                       )}
@@ -566,6 +598,23 @@ export default function VendorWorkflowCard({
                       <input type="text" value={invAmount} onChange={e => setInvAmount(e.target.value)}
                         placeholder="請求金額（任意・確認用）"
                         className="w-full bg-[#0A0F1D] border border-gray-700 text-white text-[11px] rounded-lg px-3 py-2 placeholder-gray-600" />
+                      {/* 注文書金額との一致チェック（OCR自動読み取り） */}
+                      {invOcrChecking && (
+                        <p className="text-[10px] text-gray-400 flex items-center gap-1.5">
+                          <LucideRefreshCw size={10} className="animate-spin" /> 請求書の金額を確認しています...
+                        </p>
+                      )}
+                      {!invOcrChecking && invOcrAmount != null && (vq.totalAmount ?? 0) > 0 && (
+                        invOcrAmount === vq.totalAmount ? (
+                          <p className="text-[10px] text-emerald-400 flex items-center gap-1.5">
+                            <LucideCheckCircle2 size={11} /> 注文書の金額（¥{(vq.totalAmount ?? 0).toLocaleString()}）と一致しています
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-amber-400 flex items-center gap-1.5">
+                            <LucideAlertCircle size={11} /> 注文書の金額（¥{(vq.totalAmount ?? 0).toLocaleString()}）と読み取った金額（¥{invOcrAmount.toLocaleString()}）が異なります。ご確認ください。
+                          </p>
+                        )
+                      )}
                       <textarea value={invNotes} onChange={e => setInvNotes(e.target.value)}
                         placeholder="メモ（請求内容・支払条件など）" rows={2}
                         className="w-full bg-[#0A0F1D] border border-gray-700 text-white text-[11px] rounded-lg px-3 py-2 resize-none placeholder-gray-600" />

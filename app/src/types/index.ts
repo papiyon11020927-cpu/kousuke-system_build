@@ -381,6 +381,7 @@ export interface VendorQuoteRequest {
     photoUrls:    string[];           // Firebase Storage URLs（WebP 圧縮済み）
     docUrls:      { name: string; url: string; sizeMb: number }[];  // 添付PDF
     amount?:      number;
+    ocrAmount?:   number;             // OCRで読み取った請求書合計金額（注文金額との一致チェック用）
     notes:        string;
     receivedAt:   string;             // ISO 8601
     submittedVia: 'vendor' | 'staff'; // 業者提出 or スタッフ代理記録
