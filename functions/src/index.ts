@@ -11,17 +11,13 @@
  * firebase functions:secrets:set GEMINI_API_KEY
  * → プロンプトに Gemini APIキーを入力して Enter
  *
- * ── デプロイ前の設定 ──────────────────────────────────────────────
- *   # メール設定（Gmail アプリパスワード推奨）
- *   firebase functions:config:set \
- *     email.host="smtp.gmail.com" \
- *     email.port="465" \
- *     email.user="your@gmail.com" \
- *     email.password="your-app-password" \
- *     email.from_name="住良建設 SFA"
- *
- *   # アプリID（Firebase コンソールの APP_ID と一致させる）
- *   firebase functions:config:set app.id="YOUR_APP_ID"
+ * ── デプロイ前の設定（任意・.env または環境変数） ───────────────────
+ *   functions.config() は v2 で廃止（呼び出すと起動時に例外で全関数が落ちる）のため、
+ *   process.env を直接参照する。未設定でも動作する（メールは送信スキップ）。
+ *     APP_ID            … フロントの VITE_APP_ID と一致させる（既定: sumiyoshi-genba-kpi）
+ *     EMAIL_HOST/PORT   … 既定: smtp.gmail.com / 465
+ *     EMAIL_USER/PASSWORD … Gmailアプリパスワード推奨
+ *     EMAIL_FROM_NAME   … 既定: Genba-SFA
  *
  * ── デプロイ ─────────────────────────────────────────────────────
  *   cd functions && npm install && npm run build
@@ -39,7 +35,9 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // ─── アプリIDを環境変数から取得 ───────────────────────────────────
-const APP_ID = functions.config().app?.id ?? 'default';
+// functions.config() は Cloud Functions for Firebase v2 で廃止されており、
+// 呼び出すとモジュールロード時に例外を投げて全関数が起動不能になるため使用しない。
+const APP_ID = process.env.APP_ID ?? 'sumiyoshi-genba-kpi';
 
 // ─── HTML エスケープ（メール本文の XSS 防止） ────────────────────
 function escapeHtml(str: string): string {
@@ -56,14 +54,13 @@ let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter {
   if (transporter) return transporter;
-  const cfg = functions.config().email ?? {};
   transporter = nodemailer.createTransport({
-    host:   cfg.host   ?? 'smtp.gmail.com',
-    port:   Number(cfg.port ?? 465),
+    host:   process.env.EMAIL_HOST ?? 'smtp.gmail.com',
+    port:   Number(process.env.EMAIL_PORT ?? 465),
     secure: true,
     auth: {
-      user: cfg.user     ?? '',
-      pass: cfg.password ?? '',
+      user: process.env.EMAIL_USER     ?? '',
+      pass: process.env.EMAIL_PASSWORD ?? '',
     },
   });
   return transporter;
@@ -119,9 +116,8 @@ export const onNotificationCreated = functions
       return;
     }
 
-    const cfg      = functions.config().email ?? {};
-    const fromName = cfg.from_name ?? 'Genba-SFA';
-    const fromAddr = cfg.user ?? '';
+    const fromName = process.env.EMAIL_FROM_NAME ?? 'Genba-SFA';
+    const fromAddr = process.env.EMAIL_USER ?? '';
 
     const mailPromises = targets.map(u =>
       getTransporter().sendMail({
