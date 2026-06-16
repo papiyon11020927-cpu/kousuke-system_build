@@ -378,6 +378,14 @@
 [data-theme="navy-white"] .hover\:bg-white\/5:hover,
 [data-theme="mint-teal"]  .hover\:bg-white\/5:hover  { background-color: rgba(0,0,0,0.03) !important; }
 
+/* hover:bg-[#0A0F1D] → 案件ワークスペース左リストの非選択ホバー */
+[data-theme="navy-white"] .hover\:bg-\[\#0A0F1D\]:hover,
+[data-theme="mint-teal"]  .hover\:bg-\[\#0A0F1D\]:hover { background-color: color-mix(in srgb, var(--th-accent) 8%, transparent) !important; }
+
+/* hover:bg-[#111A35] など他の dark hex hover */
+[data-theme="navy-white"] .hover\:bg-\[\#111A35\]:hover,
+[data-theme="mint-teal"]  .hover\:bg-\[\#111A35\]:hover { background-color: color-mix(in srgb, var(--th-accent) 6%, transparent) !important; }
+
 /* ── StaffDashboard / ManagerDashboard 固有 hex ── */
 [data-theme="navy-white"] .bg-\[\#131F3F\],
 [data-theme="mint-teal"]  .bg-\[\#131F3F\]   { background-color: var(--th-elevated) !important; }
