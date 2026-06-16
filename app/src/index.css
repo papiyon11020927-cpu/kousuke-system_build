@@ -114,10 +114,10 @@ body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
   & .text-\[\#E2E8F0\]  { color: var(--th-text)         !important; }
   & .text-\[\#0A0F1D\]  { color: var(--th-text-on-accent) !important; }
   & .text-white         { color: var(--th-text)         !important; }
-  & .text-gray-300      { color: color-mix(in srgb, var(--th-text) 80%, transparent) !important; }
-  & .text-gray-400      { color: color-mix(in srgb, var(--th-text) 65%, transparent) !important; }
-  & .text-gray-500      { color: color-mix(in srgb, var(--th-text) 50%, transparent) !important; }
-  & .text-gray-600      { color: color-mix(in srgb, var(--th-text) 40%, transparent) !important; }
+  & .text-gray-300      { color: color-mix(in srgb, var(--th-text) 88%, transparent) !important; }
+  & .text-gray-400      { color: color-mix(in srgb, var(--th-text) 78%, transparent) !important; }
+  & .text-gray-500      { color: color-mix(in srgb, var(--th-text) 65%, transparent) !important; }
+  & .text-gray-600      { color: color-mix(in srgb, var(--th-text) 55%, transparent) !important; }
 
   /* ── ボーダー ───────────────────────────── */
   & .border-\[\#C5A059\]       { border-color: var(--th-accent) !important; }
@@ -125,8 +125,8 @@ body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
   & .border-\[\#C5A059\]\/30   { border-color: color-mix(in srgb, var(--th-accent) 30%, transparent) !important; }
   & .border-\[\#C5A059\]\/40   { border-color: color-mix(in srgb, var(--th-accent) 40%, transparent) !important; }
   & .border-\[\#C5A059\]\/50   { border-color: color-mix(in srgb, var(--th-accent) 50%, transparent) !important; }
-  & .border-gray-700    { border-color: color-mix(in srgb, var(--th-accent) 15%, transparent) !important; }
-  & .border-gray-800    { border-color: color-mix(in srgb, var(--th-accent) 10%, transparent) !important; }
+  & .border-gray-700    { border-color: color-mix(in srgb, var(--th-accent) 30%, transparent) !important; }
+  & .border-gray-800    { border-color: color-mix(in srgb, var(--th-accent) 18%, transparent) !important; }
 
   /* ── 標準グレー背景 ─────────────────────── */
   & .bg-gray-700  { background-color: color-mix(in srgb, var(--th-accent) 12%, transparent) !important; }
@@ -170,7 +170,16 @@ body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
   & .bg-\[\#1C284D\] { background-color: var(--th-surface) !important; }
 
   /* カラム下部ドロップゾーン */
-  & .bg-\[\#0A0F1D\]\/40 { background-color: color-mix(in srgb, var(--th-accent) 6%, transparent) !important; }
+  & .bg-\[\#0A0F1D\]\/40 { background-color: color-mix(in srgb, var(--th-accent)  6%, transparent) !important; }
+  /* 補足バー（マスタ管理・ヒント行）: グレー背景に同系色文字を避ける */
+  & .bg-\[\#0A0F1D\]\/60 {
+    background-color: color-mix(in srgb, var(--th-accent) 10%, transparent) !important;
+    border-left: 3px solid var(--th-accent) !important;
+  }
+  /* その他の opacity 付き dark bg */
+  & .bg-\[\#0B132B\]\/95 { background-color: color-mix(in srgb, var(--th-nav) 95%, transparent) !important; }
+  & .bg-\[\#16223F\]\/60, & .bg-\[\#16223F\]\/80 { background-color: var(--th-input) !important; }
+  & .bg-\[\#1C2C54\]\/40, & .bg-\[\#1C2C54\]\/60 { background-color: var(--th-elevated) !important; }
 
   /* Pipeline 列ヘッダー（ドロップ時オーバーレイ） */
   & .bg-gray-800\/40    { background-color: rgba(107,114,128,0.10) !important; }
