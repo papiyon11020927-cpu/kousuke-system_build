@@ -215,18 +215,16 @@ export default function VendorWorkflowCard({
   const addInvoicePhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     const previews = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
-    const isFirstFile = invPhotoFiles.length === 0 && invDocs.length === 0;
     setInvPhotoFiles(prev => [...prev, ...previews].slice(0, 5));
-    if (isFirstFile && files[0]) checkInvoiceAmount(files[0]);
+    if (!invAmount && files[0]) checkInvoiceAmount(files[0]);
     e.target.value = '';
   };
 
   const addInvoiceDocs = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []).filter(f => f.type === 'application/pdf');
     if (files.some(f => f.size > 8 * 1024 * 1024)) { onShowToast('PDFは8MB以内にしてください'); return; }
-    const isFirstFile = invPhotoFiles.length === 0 && invDocs.length === 0;
     setInvDocs(prev => [...prev, ...files].slice(0, 3));
-    if (isFirstFile && files[0]) checkInvoiceAmount(files[0]);
+    if (!invAmount && files[0]) checkInvoiceAmount(files[0]);
     e.target.value = '';
   };
 

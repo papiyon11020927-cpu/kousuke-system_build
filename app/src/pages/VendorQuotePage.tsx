@@ -652,9 +652,8 @@ export default function VendorQuotePage({ token }: Props) {
     const addInvoicePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? []);
       const previews = files.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
-      const isFirstFile = invoicePhotoFiles.length === 0 && invoiceDocs.length === 0;
       setInvoicePhotoFiles(prev => [...prev, ...previews].slice(0, 8));
-      if (isFirstFile && files[0]) checkInvoiceAmount(files[0]);
+      if (!invoiceAmount && files[0]) checkInvoiceAmount(files[0]);
       e.target.value = '';
     };
 
@@ -664,9 +663,8 @@ export default function VendorQuotePage({ token }: Props) {
         setInvoiceError('PDFは8MB以内にしてください');
         return;
       }
-      const isFirstFile = invoicePhotoFiles.length === 0 && invoiceDocs.length === 0;
       setInvoiceDocs(prev => [...prev, ...files].slice(0, 3));
-      if (isFirstFile && files[0]) checkInvoiceAmount(files[0]);
+      if (!invoiceAmount && files[0]) checkInvoiceAmount(files[0]);
       e.target.value = '';
     };
 
