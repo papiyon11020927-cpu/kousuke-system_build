@@ -80,6 +80,13 @@ body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
    (navy-white / mint-teal 共通)
    ════════════════════════════════════════════════ */
 
+/* ルート要素自身のベース背景・テキスト色（data-theme と bg クラスが同一要素のため子孫セレクタでは効かない） */
+[data-theme="navy-white"],
+[data-theme="mint-teal"] {
+  background-color: var(--th-base);
+  color: var(--th-text);
+}
+
 [data-theme="navy-white"],
 [data-theme="mint-teal"] {
 
