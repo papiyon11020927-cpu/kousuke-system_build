@@ -176,6 +176,7 @@ export const analyzeVendorDoc = onCall(
     maxInstances: 5,
     invoker:      'public',
     timeoutSeconds: 60,
+    cors:         true,
   },
   async (request) => {
     const { base64, mimeType } = request.data as { base64?: string; mimeType?: string };
@@ -254,6 +255,7 @@ export const geminiAnalyzeReport = onCall(
     secrets:      [geminiSecret],
     maxInstances: 10,
     timeoutSeconds: 30,
+    cors:         true,
   },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', '認証が必要です');
@@ -292,6 +294,7 @@ export const geminiDailySummary = onCall(
     secrets:      [geminiSecret],
     maxInstances: 10,
     timeoutSeconds: 30,
+    cors:         true,
   },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', '認証が必要です');
@@ -331,6 +334,7 @@ export const signCustomerContract = onCall(
     maxInstances: 10,
     invoker:      'public',
     timeoutSeconds: 30,
+    cors:         true,
   },
   async (request) => {
     const { contractId, signatureDataUrl } = request.data as { contractId?: string; signatureDataUrl?: string };
