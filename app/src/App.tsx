@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
+import { useState, useEffect, useMemo, useCallback, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 
 // ─── ErrorBoundary ────────────────────────────────────────────
@@ -44,13 +44,12 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   }
 }
 import {
-  LucideUsers, LucideTrendingUp,
-  LucideCalendar, LucideLayers, LucideActivity, LucideMic,
-  LucideTarget, LucideFileText, LucideLogOut, LucideSettings,
+  LucideActivity,
   LucideBell, LucideX, LucideCheckCheck, LucideMail, LucideMailOpen,
-  LucideLayoutDashboard, LucideHistory,
+  LucideHistory,
 } from 'lucide-react';
-import type { UserRole, AppNotification, ColorTheme } from '@/types';
+import type { UserRole, AppNotification, ColorTheme, MasterSubTab } from '@/types';
+import Sidebar, { HamburgerButton } from '@/components/Sidebar';
 import { useAuth }         from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { markNotificationRead, markAllNotificationsRead } from '@/services/notificationService';
@@ -116,8 +115,6 @@ export default function App() {
   const [theme, setTheme] = useState<ColorTheme>(
     () => (localStorage.getItem('colorTheme') as ColorTheme | null) ?? user?.theme ?? 'navy-gold',
   );
-  const [showThemePicker, setShowThemePicker] = useState(false);
-  const themePickerRef = useRef<HTMLDivElement>(null);
 
   // Firestore のテーマが届いたら同期（初回ログイン時）
   useEffect(() => {
@@ -128,26 +125,17 @@ export default function App() {
   const handleThemeChange = useCallback((t: ColorTheme) => {
     setTheme(t);
     localStorage.setItem('colorTheme', t);
-    setShowThemePicker(false);
     if (uid) updateUserTheme(uid, t).catch(console.error);
   }, [uid]);
 
-  // テーマピッカー外クリックで閉じる
-  useEffect(() => {
-    if (!showThemePicker) return;
-    const handler = (e: MouseEvent) => {
-      if (themePickerRef.current && !themePickerRef.current.contains(e.target as Node)) {
-        setShowThemePicker(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showThemePicker]);
-
   // staff = 自分の名前固定; manager/admin = ドロップダウンで選択
-  const [selectedStaff, setSelectedStaff] = useState<string>('');
-  const [activeTab,     setActiveTab]     = useState<ActiveTab>('dashboard');
-  const [reportNavData, setReportNavData] = useState<{ projectId: string; customerId: string } | null>(null);
+  const [selectedStaff,    setSelectedStaff]    = useState<string>('');
+  const [activeTab,        setActiveTab]        = useState<ActiveTab>('dashboard');
+  const [masterSubTab,     setMasterSubTab]     = useState<MasterSubTab>('templates');
+  const [reportNavData,    setReportNavData]    = useState<{ projectId: string; customerId: string } | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [drawerOpen,       setDrawerOpen]       = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // ─── ワークスペースジャンプ ───────────────────────────────────
   const [workspaceJump, setWorkspaceJump] = useState<{
@@ -292,63 +280,35 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0F1D] text-[#E2E8F0]" data-theme={theme}>
-      {/* ─── ヘッダー ─── */}
-      <header className="sticky top-0 z-40 bg-[#0B132B]/95 backdrop-blur border-b border-[#C5A059]/20 shadow-lg px-4 py-3">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="h-screen bg-[#0A0F1D] text-[#E2E8F0] flex flex-col overflow-hidden" data-theme={theme}>
+      {/* ─── ヘッダー（スリム化） ─── */}
+      <header className="sticky top-0 z-40 bg-[#0B132B]/95 backdrop-blur border-b border-[#C5A059]/20 shadow-lg px-4 py-2.5 shrink-0">
+        <div className="flex items-center justify-between gap-3">
           {/* ロゴ */}
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-tr from-[#C5A059] to-[#E6C687] flex items-center justify-center shadow-md">
-              <span className="text-white font-extrabold text-xl tracking-wider">住</span>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-[#C5A059] to-[#E6C687] flex items-center justify-center shadow-md shrink-0">
+              <span className="text-white font-extrabold text-sm tracking-wider">住</span>
             </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-widest text-white flex items-center gap-2">
+            <div className="hidden sm:block">
+              <h1 className="text-sm font-bold tracking-widest text-white flex items-center gap-2">
                 住良建設
-                <span className="text-xs bg-[#C5A059]/20 text-[#E6C687] border border-[#C5A059]/40 px-2 py-0.5 rounded">
+                <span className="text-[10px] bg-[#C5A059]/20 text-[#E6C687] border border-[#C5A059]/40 px-1.5 py-0.5 rounded">
                   Genba-SFA
                 </span>
               </h1>
-              <p className="text-[10px] text-gray-400">現場主義 ＆ 顧客 LTV 最大化プラットフォーム</p>
+              <p className="text-[9px] text-gray-500">現場主義 ＆ 顧客 LTV 最大化プラットフォーム</p>
             </div>
           </div>
 
-          {/* コントロール群 */}
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
-            {/* ログインユーザー情報 */}
-            <div className="flex items-center gap-2 bg-[#16223F] border border-gray-700 rounded-lg px-3 py-1.5">
-              <div className="h-6 w-6 rounded-full bg-[#1C2C54] flex items-center justify-center text-[10px] font-bold text-[#E6C687]">
-                {user.displayName.charAt(0)}
-              </div>
-              <span className="text-xs text-white font-medium">{user.displayName}</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-                currentRole === 'admin'   ? 'bg-purple-900/40 text-purple-300 border border-purple-700/40' :
-                currentRole === 'manager' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/40' :
-                                            'bg-blue-900/40 text-blue-300 border border-blue-700/40'
-              }`}>
-                {currentRole === 'admin' ? 'スーパー管理者' : currentRole === 'manager' ? '管理者' : '営業・現場'}
-              </span>
-            </div>
-
-            {/* スーパー管理者のみ: スタッフ選択ドロップダウン */}
-            {currentRole === 'admin' && staffList.length > 0 && (
-              <select
-                value={selectedStaff}
-                onChange={e => setSelectedStaff(e.target.value)}
-                className="bg-[#1C2C54] border border-[#C5A059]/30 text-white text-xs rounded-md px-2 py-1 focus:outline-none"
-              >
-                {staffList.map(s => (
-                  <option key={s} value={s}>👤 {s}</option>
-                ))}
-              </select>
-            )}
-
-            {/* 接続ステータス */}
-            <span className="text-[11px] bg-emerald-950/40 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full flex items-center gap-1">
+          {/* 右側コントロール群 */}
+          <div className="flex items-center gap-2">
+            {/* 接続ステータス（PC のみ表示） */}
+            <span className="hidden md:flex text-[10px] bg-emerald-950/40 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded-full items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Firebase 接続中
+              接続中
             </span>
 
-            {/* 通知ベル（全ユーザー：自分宛て通知がある場合に表示） */}
+            {/* 通知ベル */}
             {(isManagerLike || notifications.length > 0) && (
               <div className="relative">
                 <button
@@ -440,105 +400,40 @@ export default function App() {
               </div>
             )}
 
-            {/* テーマピッカー */}
-            <div className="relative" ref={themePickerRef}>
-              <button
-                onClick={() => setShowThemePicker(p => !p)}
-                title="カラーテーマ切替"
-                className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition ${
-                  showThemePicker
-                    ? 'bg-[#1C2C54] text-[#E6C687] border-[#C5A059]/50'
-                    : 'text-gray-400 hover:text-[#E6C687] border-gray-700 hover:border-[#C5A059]/50'
-                }`}
-              >
-                <span style={{ fontSize: 14 }}>🎨</span>
-              </button>
-              {showThemePicker && (
-                <div className="absolute right-0 top-10 z-50 bg-[#111A35] border border-gray-700 rounded-xl shadow-2xl p-3 w-52">
-                  <p className="text-[10px] text-gray-500 mb-2 px-1">カラーテーマ</p>
-                  {(
-                    [
-                      { id: 'navy-gold',   label: 'Navy × Gold',  dot: '#C5A059', bg: '#0A0F1D' },
-                      { id: 'navy-white',  label: 'Navy × White', dot: '#1B3A6B', bg: '#F8FAFB' },
-                      { id: 'mint-teal',   label: 'Mint × Teal',  dot: '#0D9488', bg: '#F0F7F6' },
-                    ] as { id: ColorTheme; label: string; dot: string; bg: string }[]
-                  ).map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => handleThemeChange(t.id)}
-                      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition mb-1 ${
-                        theme === t.id
-                          ? 'bg-[#C5A059]/15 text-[#E6C687]'
-                          : 'text-gray-300 hover:bg-[#1C2C54]/60 hover:text-white'
-                      }`}
-                    >
-                      <span className="flex gap-1 shrink-0">
-                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: t.bg, border: '1px solid #4b5563', display: 'inline-block' }} />
-                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: t.dot, display: 'inline-block' }} />
-                      </span>
-                      {t.label}
-                      {theme === t.id && <span className="ml-auto text-[#C5A059]">✓</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* ログアウト */}
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-300 border border-gray-700 hover:border-red-700/50 rounded-lg px-3 py-1.5 transition"
-            >
-              <LucideLogOut size={13} /> ログアウト
-            </button>
+            {/* モバイル: ハンバーガー */}
+            <HamburgerButton onClick={() => setDrawerOpen(true)} />
           </div>
         </div>
       </header>
 
-      {/* ─── サブナビゲーション ─── */}
-      <div className="bg-[#111A35] border-b border-gray-800 px-4">
-        <div className="max-w-7xl mx-auto flex gap-1 overflow-x-auto py-1.5">
+      {/* ─── ボディ（サイドバー + コンテンツ） ─── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
-          {/* ── 営業TOP・現場報告 は全ロール共通 ── */}
-          <NavTab label="営業 TOP (KPI)" icon={<LucideTrendingUp size={14} />} id="dashboard"    active={activeTab} onClick={setActiveTab} />
-          <NavTab label="現場報告"       icon={<LucideMic       size={14} />} id="report"       active={activeTab} onClick={setActiveTab} />
+        {/* サイドバー */}
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={(tab) => { setActiveTab(tab); }}
+          masterSubTab={masterSubTab}
+          onMasterSubTabChange={setMasterSubTab}
+          viewingAsStaff={viewingAsStaff}
+          isManagerLike={isManagerLike}
+          currentRole={currentRole}
+          user={user}
+          theme={theme}
+          onThemeChange={handleThemeChange}
+          onLogout={handleLogout}
+          staffList={staffList}
+          selectedStaff={selectedStaff}
+          onStaffChange={setSelectedStaff}
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={setSidebarCollapsed}
+          drawerOpen={drawerOpen}
+          onDrawerClose={() => setDrawerOpen(false)}
+          onProfileOpen={() => setShowProfileModal(true)}
+        />
 
-          {/* ── スタッフ専用タブ ── */}
-          {viewingAsStaff && (
-            <NavTab label="カレンダー"   icon={<LucideCalendar  size={14} />} id="calendar"     active={activeTab} onClick={setActiveTab} />
-          )}
-          {viewingAsStaff && (
-            <NavTab label="日報"         icon={<LucideFileText  size={14} />} id="daily_report" active={activeTab} onClick={setActiveTab} />
-          )}
-          {viewingAsStaff && (
-            <NavTab label="目標管理"     icon={<LucideTarget    size={14} />} id="goals"        active={activeTab} onClick={setActiveTab} />
-          )}
-
-          {/* ── 管理者視点タブ（スタッフ選択中は非表示） ── */}
-          {isManagerLike && !viewingAsStaff && (
-            <NavTab label="リソース管理"   icon={<LucideUsers     size={14} />} id="manager"      active={activeTab} onClick={setActiveTab} />
-          )}
-          {isManagerLike && !viewingAsStaff && (
-            <NavTab label="全員カレンダー" icon={<LucideCalendar  size={14} />} id="calendar"     active={activeTab} onClick={setActiveTab} />
-          )}
-          {isManagerLike && !viewingAsStaff && (
-            <NavTab label="日報"           icon={<LucideFileText  size={14} />} id="daily_report" active={activeTab} onClick={setActiveTab} />
-          )}
-
-          {/* 共通タブ */}
-          <NavTab label="パイプライン"     icon={<LucideLayoutDashboard size={14} />} id="pipeline"  active={activeTab} onClick={setActiveTab} />
-          <NavTab label="案件ワークスペース" icon={<LucideLayers size={14} />}          id="workspace" active={activeTab} onClick={setActiveTab} />
-          <NavTab label="顧客カルテ一覧"   icon={<LucideUsers size={14} />}            id="database"  active={activeTab} onClick={setActiveTab} />
-
-          {/* 管理者・スーパー管理者専用: マスタ管理（テンプレート＋ユーザー管理） */}
-          {isManagerLike && (
-            <NavTab label="マスタ管理" icon={<LucideSettings size={14} />} id="masters" active={activeTab} onClick={setActiveTab} />
-          )}
-        </div>
-      </div>
-
-      {/* ─── メインコンテンツ ─── */}
-      <main className="max-w-7xl mx-auto p-4 md:p-6">
+        {/* メインコンテンツ */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 min-w-0">
       <AppErrorBoundary>
         {activeTab === 'dashboard' && (
           <StaffDashboard
@@ -661,10 +556,12 @@ export default function App() {
             currentUid={uid ?? ''}
             currentRole={currentRole}
             onShowToast={showToast}
+            initialSubTab={masterSubTab}
           />
         )}
       </AppErrorBoundary>
-      </main>
+        </main>
+      </div>{/* ── ボディ終了 ── */}
 
       {/* ─── 通知設定モーダル ─── */}
       {showNotifSettings && user && (
@@ -694,32 +591,31 @@ export default function App() {
           {toastMsg}
         </div>
       )}
+
+      {/* ─── プロフィールモーダル（Step C で実装） ─── */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="bg-[#111A35] border border-gray-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white">プロフィール</h3>
+              <button onClick={() => setShowProfileModal(false)} className="text-gray-500 hover:text-gray-300 transition">
+                <LucideX size={15} />
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-[#1C2C54] border border-[#C5A059]/30 flex items-center justify-center text-lg font-bold text-[#E6C687]">
+                {user.displayName.charAt(0)}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">{user.displayName}</p>
+                <p className="text-xs text-gray-400">{user.email}</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 text-center">プロフィール編集は次フェーズで実装予定です</p>
+          </div>
+        </div>
+      )}
     </div>
-  );
-}
-
-// ─── NavTab サブコンポーネント ─────────────────────────────
-
-interface NavTabProps {
-  label: string;
-  icon:  React.ReactNode;
-  id:    ActiveTab;
-  active: ActiveTab;
-  onClick: (id: ActiveTab) => void;
-}
-
-function NavTab({ label, icon, id, active, onClick }: NavTabProps) {
-  return (
-    <button
-      onClick={() => onClick(id)}
-      className={`px-4 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
-        active === id
-          ? 'bg-[#C5A059]/15 text-[#E6C687] border-b-2 border-[#C5A059]'
-          : 'text-gray-400 hover:text-white'
-      }`}
-    >
-      {icon}{label}
-    </button>
   );
 }
 

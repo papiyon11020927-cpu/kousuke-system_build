@@ -105,6 +105,8 @@ export type UserRole = 'staff' | 'manager' | 'admin';
 
 export type ColorTheme = 'navy-gold' | 'navy-white' | 'mint-teal';
 
+export type MasterSubTab = 'templates' | 'vendors' | 'users';
+
 /** メール通知 On/Off 設定（ユーザーマスタに保持） */
 export interface NotificationSettings {
   emailOnVendorQuote: boolean;  // 業者見積回答時

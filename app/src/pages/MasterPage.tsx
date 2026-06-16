@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  LucideSettings, LucideClipboardList, LucideUsers,
+  LucideClipboardList, LucideUsers,
   LucidePlusCircle, LucideTrash2, LucidePencil, LucideX,
   LucidePlus, LucideActivity, LucideCheck, LucideTag,
   LucideChevronDown, LucideChevronUp,
@@ -8,7 +8,7 @@ import {
   LucideShieldCheck, LucideShieldAlert, LucideShield,
   LucideSearch, LucideFileSignature, LucideInfo, LucideLink, LucideFileText,
 } from 'lucide-react';
-import type { AppUser, UserRole, EstimateTemplate, EstimateItem, Vendor, VendorBasicContract, ContractTemplate } from '@/types';
+import type { AppUser, UserRole, MasterSubTab, EstimateTemplate, EstimateItem, Vendor, VendorBasicContract, ContractTemplate } from '@/types';
 import { saveEstimateTemplate, deleteEstimateTemplate } from '@/services/estimateTemplateService';
 import { saveContractTemplate, deleteContractTemplate } from '@/services/contractTemplateService';
 import { saveVendor, deleteVendor } from '@/services/vendorService';
@@ -280,24 +280,29 @@ function TemplateMasterPanel({
 }) {
   const [subTab, setSubTab] = useState<'estimates' | 'contracts'>('estimates');
 
+  const OPTIONS = [
+    { key: 'estimates' as const, label: '見積書テンプレート',  icon: <LucideClipboardList size={13} /> },
+    { key: 'contracts' as const, label: '契約書テンプレート',  icon: <LucideFileText      size={13} /> },
+  ];
+
   return (
     <div className="space-y-4">
-      {/* サブタブ */}
-      <div className="bg-[#111A35] border border-gray-800 rounded-xl overflow-hidden">
-        <div className="flex border-b border-gray-800">
-          <button
-            onClick={() => setSubTab('estimates')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold transition ${subTab === 'estimates' ? 'text-[#E6C687] border-b-2 border-[#C5A059] bg-[#C5A059]/5' : 'text-gray-400 hover:text-white'}`}
-          >
-            <LucideClipboardList size={12} /> 見積書テンプレート
-          </button>
-          <button
-            onClick={() => setSubTab('contracts')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold transition ${subTab === 'contracts' ? 'text-[#E6C687] border-b-2 border-[#C5A059] bg-[#C5A059]/5' : 'text-gray-400 hover:text-white'}`}
-          >
-            <LucideFileText size={12} /> 契約書テンプレート
-          </button>
-        </div>
+      {/* テンプレート種別 プルダウン */}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] text-gray-500 shrink-0">テンプレート種別</span>
+        <select
+          value={subTab}
+          onChange={e => setSubTab(e.target.value as 'estimates' | 'contracts')}
+          className="bg-[#111A35] border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#C5A059]/50 cursor-pointer"
+        >
+          {OPTIONS.map(o => (
+            <option key={o.key} value={o.key}>{o.label}</option>
+          ))}
+        </select>
+        <span className="text-[10px] text-gray-600 flex items-center gap-1">
+          {OPTIONS.find(o => o.key === subTab)?.icon}
+          {subTab === 'estimates' ? '管理者・スーパー管理者が編集できます' : '管理者・スーパー管理者が編集できます'}
+        </span>
       </div>
 
       {subTab === 'estimates' && (
@@ -1705,10 +1710,10 @@ function VendorMasterPanel({
 
             return (
               <div key={vendor.vendorId}
-                className={`bg-[#0A0F1D] rounded-xl border ${vendor.status === 'inactive' ? 'border-gray-800 opacity-60' : 'border-gray-700/80'} overflow-hidden`}>
+                className={`bg-[#111A35] rounded-xl border ${vendor.status === 'inactive' ? 'border-gray-800 opacity-60' : 'border-gray-700/80'} overflow-hidden`}>
                 {/* カードヘッダー（クリックで展開） */}
                 <div
-                  className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#0F1A30] transition"
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#1C2C54]/40 transition"
                   onClick={() => setExpandedId(isExp ? null : vendor.vendorId)}
                 >
                   <LucideBuilding2 size={16} className="text-[#C5A059] shrink-0" />
@@ -1895,8 +1900,6 @@ function VendorMasterPanel({
 // MasterPage — メインコンポーネント
 // ─────────────────────────────────────────────────────────────
 
-type MasterSubTab = 'templates' | 'users' | 'vendors';
-
 interface MasterPageProps {
   templates:         EstimateTemplate[];
   contractTemplates: ContractTemplate[];
@@ -1905,52 +1908,25 @@ interface MasterPageProps {
   currentUid:        string;
   currentRole:       UserRole;
   onShowToast:       (msg: string) => void;
+  initialSubTab?:    MasterSubTab;
 }
 
 export default function MasterPage({
   templates, contractTemplates, users, vendors, currentUid, currentRole, onShowToast,
+  initialSubTab,
 }: MasterPageProps) {
   const isAdmin       = currentRole === 'admin';
   const isManagerLike = currentRole === 'manager' || currentRole === 'admin';
 
-  const [activeSubTab, setActiveSubTab] = useState<MasterSubTab>('templates');
+  const [activeSubTab, setActiveSubTab] = useState<MasterSubTab>(initialSubTab ?? 'templates');
 
-  const TAB_CONFIG = [
-    { key: 'templates' as const, label: 'テンプレート管理', icon: <LucideClipboardList size={13} />, visible: isManagerLike },
-    { key: 'vendors'   as const, label: '外部業者管理',     icon: <LucideBuilding2 size={13} />,     visible: isManagerLike },
-    { key: 'users'     as const, label: 'ユーザー管理',     icon: <LucideUsers size={13} />,         visible: isAdmin },
-  ];
-
-  const ACCESS_HINT: Record<MasterSubTab, string> = {
-    templates: '管理者・スーパー管理者が編集できます',
-    vendors:   '管理者・スーパー管理者が編集できます',
-    users:     'スーパー管理者のみ操作できます',
-  };
+  // サイドバーからのサブタブ変更を反映
+  useEffect(() => {
+    if (initialSubTab) setActiveSubTab(initialSubTab);
+  }, [initialSubTab]);
 
   return (
     <div className="space-y-4">
-
-      {/* タブバー */}
-      <div className="bg-[#111A35] border border-gray-800 rounded-xl overflow-hidden">
-        <div className="flex border-b border-gray-800">
-          {TAB_CONFIG.filter(t => t.visible).map(t => (
-            <button key={t.key}
-              onClick={() => setActiveSubTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold transition ${
-                activeSubTab === t.key
-                  ? 'text-[#E6C687] border-b-2 border-[#C5A059] bg-[#C5A059]/5'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              {t.icon} {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="px-4 py-2 bg-[#0A0F1D]/60 border-b border-gray-800/50 flex items-center gap-2 text-[10px] text-gray-500">
-          <LucideSettings size={10} />
-          <span>{ACCESS_HINT[activeSubTab]}</span>
-        </div>
-      </div>
 
       {/* パネル */}
       {activeSubTab === 'templates' && isManagerLike && (
