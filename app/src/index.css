@@ -246,12 +246,26 @@ body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
 }
 
 /* ════════════════════════════════════════════════
-   ホバーオーバーレイ（テーマ別・カード用）
-   inset box-shadow でアクセント色を薄く乗せる
+   ホバー背景（テーマ別・パイプラインカード用）
+   ライトテーマではアクセント色を薄く乗せた明るい色に
    ════════════════════════════════════════════════ */
-[data-theme="navy-white"] .hover\:brightness-110:hover {
-  box-shadow: inset 0 0 0 9999px rgba(27,58,107,0.07) !important;
-}
-[data-theme="mint-teal"] .hover\:brightness-110:hover {
-  box-shadow: inset 0 0 0 9999px rgba(13,148,136,0.10) !important;
-}
+
+/* navy-white: 各カードホバー → 薄いネイビー寄り */
+[data-theme="navy-white"] .bg-\[\#131C38\]:hover { background-color: #E4E9F5 !important; }
+[data-theme="navy-white"] .bg-\[\#1C1808\]:hover { background-color: #FFF3C4 !important; }
+[data-theme="navy-white"] .bg-\[\#080E1F\]:hover { background-color: #DCEEFF !important; }
+[data-theme="navy-white"] .bg-\[\#071510\]:hover { background-color: #D6F5E0 !important; }
+[data-theme="navy-white"] .bg-\[\#060E18\]:hover { background-color: #D6EEFF !important; }
+[data-theme="navy-white"] .bg-\[\#0D0714\]:hover { background-color: #EFE5FF !important; }
+[data-theme="navy-white"] .bg-\[\#051210\]:hover { background-color: #D6FAF3 !important; }
+[data-theme="navy-white"] .bg-\[\#130808\]:hover { background-color: #FFE8E8 !important; }
+
+/* mint-teal: 各カードホバー → 薄いティールグリーン寄り */
+[data-theme="mint-teal"] .bg-\[\#131C38\]:hover { background-color: #D6EDE9 !important; }
+[data-theme="mint-teal"] .bg-\[\#1C1808\]:hover { background-color: #D6F0EA !important; }
+[data-theme="mint-teal"] .bg-\[\#080E1F\]:hover { background-color: #CFF0EB !important; }
+[data-theme="mint-teal"] .bg-\[\#071510\]:hover { background-color: #C8EDE7 !important; }
+[data-theme="mint-teal"] .bg-\[\#060E18\]:hover { background-color: #C8EEF0 !important; }
+[data-theme="mint-teal"] .bg-\[\#0D0714\]:hover { background-color: #D6EDE9 !important; }
+[data-theme="mint-teal"] .bg-\[\#051210\]:hover { background-color: #C4EDE6 !important; }
+[data-theme="mint-teal"] .bg-\[\#130808\]:hover { background-color: #D6EDE9 !important; }

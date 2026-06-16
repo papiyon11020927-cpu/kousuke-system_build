@@ -519,7 +519,7 @@ export default function VendorQuotePage({ token }: Props) {
   // ─── ローディング ────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A0F1D] flex items-center justify-center">
+      <div data-theme="navy-white" className="min-h-screen bg-[#0A0F1D] flex items-center justify-center">
         <LucideActivity size={24} className="text-[#C5A059] animate-spin" />
       </div>
     );
@@ -528,7 +528,7 @@ export default function VendorQuotePage({ token }: Props) {
   // ─── 未発見 ──────────────────────────────────────────────────
   if (notFound || !request) {
     return (
-      <div className="min-h-screen bg-[#0A0F1D] flex items-center justify-center p-6">
+      <div data-theme="navy-white" className="min-h-screen bg-[#0A0F1D] flex items-center justify-center p-6">
         <div className="bg-[#111A35] border border-red-700/40 rounded-xl p-8 max-w-md w-full text-center space-y-4">
           <LucideAlertCircle size={36} className="text-red-400 mx-auto" />
           <h2 className="text-base font-bold text-white">URLが無効または期限切れです</h2>
@@ -669,7 +669,7 @@ export default function VendorQuotePage({ token }: Props) {
     };
 
     return (
-      <div className="min-h-screen bg-[#0A0F1D] p-6 flex flex-col items-center gap-6">
+      <div data-theme="navy-white" className="min-h-screen bg-[#0A0F1D] p-6 flex flex-col items-center gap-6">
         {/* 見積受付済みカード */}
         <div className="bg-[#111A35] border border-emerald-700/40 rounded-xl p-8 max-w-md w-full text-center space-y-4">
           <LucideCheckCircle2 size={40} className="text-emerald-400 mx-auto" />
@@ -997,7 +997,7 @@ export default function VendorQuotePage({ token }: Props) {
 
   // ─── フォーム画面 ────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0A0F1D] text-[#E2E8F0]">
+    <div data-theme="navy-white" className="min-h-screen bg-[#0A0F1D] text-[#E2E8F0]">
 
       {/* 明細一括クリア 確認ダイアログ */}
       {showClearConfirm && (
