@@ -1,0 +1,450 @@
+/* ════════════════════════════════════════════════════════════════
+   theme.css — カラーテーマ定義
+   ※ このファイルは @import "tailwindcss" を含まないため
+      @tailwindcss/vite プラグインに干渉されず、Vite が
+      そのまま最終バンドルに含める。
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Navy×Gold (デフォルト) ── */
+:root {
+  --th-base:           #0A0F1D;
+  --th-nav:            #0B132B;
+  --th-surface:        #111A35;
+  --th-inner:          #0D1424;
+  --th-input:          #16223F;
+  --th-elevated:       #1C2C54;
+  --th-accent:         #C5A059;
+  --th-accent-hover:   #E6C687;
+  --th-accent-muted:   rgba(197,160,89,0.15);
+  --th-text:           #E2E8F0;
+  --th-text-on-accent: #0A0F1D;
+  --scrollbar-track:   #0B132B;
+  --scrollbar-thumb:   #C5A059;
+}
+
+/* ── Navy×White ── */
+[data-theme="navy-white"] {
+  --th-base:           #F8FAFB;
+  --th-nav:            #FFFFFF;
+  --th-surface:        #FFFFFF;
+  --th-inner:          #EEF2F7;
+  --th-input:          #F1F5F9;
+  --th-elevated:       #E8EEF7;
+  --th-accent:         #1B3A6B;
+  --th-accent-hover:   #2D5BA3;
+  --th-accent-muted:   rgba(27,58,107,0.10);
+  --th-text:           #1E293B;
+  --th-text-on-accent: #FFFFFF;
+  --scrollbar-track:   #E8EEF7;
+  --scrollbar-thumb:   #1B3A6B;
+}
+
+/* ── Mint×Teal ── */
+[data-theme="mint-teal"] {
+  --th-base:           #F0F7F6;
+  --th-nav:            #FFFFFF;
+  --th-surface:        #FFFFFF;
+  --th-inner:          #E1F5EE;
+  --th-input:          #E8F5F2;
+  --th-elevated:       #D1EDE8;
+  --th-accent:         #0D9488;
+  --th-accent-hover:   #0F766E;
+  --th-accent-muted:   rgba(13,148,136,0.10);
+  --th-text:           #134E4A;
+  --th-text-on-accent: #FFFFFF;
+  --scrollbar-track:   #E1F5EE;
+  --scrollbar-thumb:   #0D9488;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ライトテーマ共通オーバーライド
+   (navy-white / mint-teal)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ルート要素自身（data-theme と bg クラスが同じ要素のため子孫セレクタ不可） */
+[data-theme="navy-white"],
+[data-theme="mint-teal"] {
+  background-color: var(--th-base);
+  color: var(--th-text);
+}
+
+/* ── 背景 ── */
+[data-theme="navy-white"] .bg-\[\#0A0F1D\],
+[data-theme="mint-teal"]  .bg-\[\#0A0F1D\]   { background-color: var(--th-base)     !important; }
+
+[data-theme="navy-white"] .bg-\[\#0B132B\],
+[data-theme="mint-teal"]  .bg-\[\#0B132B\]   { background-color: var(--th-nav)      !important; }
+
+[data-theme="navy-white"] .bg-\[\#0B132B\]\/95,
+[data-theme="mint-teal"]  .bg-\[\#0B132B\]\/95 { background-color: color-mix(in srgb, var(--th-nav) 95%, transparent) !important; }
+
+[data-theme="navy-white"] .bg-\[\#111A35\],
+[data-theme="mint-teal"]  .bg-\[\#111A35\]   { background-color: var(--th-surface)  !important; }
+
+[data-theme="navy-white"] .bg-\[\#0D1424\],
+[data-theme="mint-teal"]  .bg-\[\#0D1424\]   { background-color: var(--th-inner)    !important; }
+
+[data-theme="navy-white"] .bg-\[\#16223F\],
+[data-theme="mint-teal"]  .bg-\[\#16223F\]   { background-color: var(--th-input)    !important; }
+
+[data-theme="navy-white"] .bg-\[\#1C2C54\],
+[data-theme="mint-teal"]  .bg-\[\#1C2C54\]   { background-color: var(--th-elevated) !important; }
+
+[data-theme="navy-white"] .bg-\[\#1C2C54\]\/60,
+[data-theme="mint-teal"]  .bg-\[\#1C2C54\]\/60 { background-color: color-mix(in srgb, var(--th-elevated) 60%, transparent) !important; }
+
+/* ── アクセント背景 ── */
+[data-theme="navy-white"] .bg-\[\#C5A059\],
+[data-theme="mint-teal"]  .bg-\[\#C5A059\]         { background-color: var(--th-accent)       !important; }
+
+[data-theme="navy-white"] .bg-\[\#C5A059\]\/5,
+[data-theme="mint-teal"]  .bg-\[\#C5A059\]\/5      { background-color: color-mix(in srgb, var(--th-accent)  5%, transparent) !important; }
+
+[data-theme="navy-white"] .bg-\[\#C5A059\]\/10,
+[data-theme="mint-teal"]  .bg-\[\#C5A059\]\/10     { background-color: color-mix(in srgb, var(--th-accent) 10%, transparent) !important; }
+
+[data-theme="navy-white"] .bg-\[\#C5A059\]\/15,
+[data-theme="mint-teal"]  .bg-\[\#C5A059\]\/15     { background-color: color-mix(in srgb, var(--th-accent) 15%, transparent) !important; }
+
+[data-theme="navy-white"] .bg-\[\#C5A059\]\/20,
+[data-theme="mint-teal"]  .bg-\[\#C5A059\]\/20     { background-color: color-mix(in srgb, var(--th-accent) 20%, transparent) !important; }
+
+[data-theme="navy-white"] .bg-\[\#E6C687\],
+[data-theme="mint-teal"]  .bg-\[\#E6C687\]         { background-color: var(--th-accent-hover) !important; }
+
+/* ── テキスト ── */
+[data-theme="navy-white"] .text-\[\#C5A059\],
+[data-theme="mint-teal"]  .text-\[\#C5A059\]  { color: var(--th-accent)       !important; }
+
+[data-theme="navy-white"] .text-\[\#E6C687\],
+[data-theme="mint-teal"]  .text-\[\#E6C687\]  { color: var(--th-accent-hover) !important; }
+
+[data-theme="navy-white"] .text-\[\#E2E8F0\],
+[data-theme="mint-teal"]  .text-\[\#E2E8F0\]  { color: var(--th-text)         !important; }
+
+[data-theme="navy-white"] .text-\[\#0A0F1D\],
+[data-theme="mint-teal"]  .text-\[\#0A0F1D\]  { color: var(--th-text-on-accent) !important; }
+
+[data-theme="navy-white"] .text-white,
+[data-theme="mint-teal"]  .text-white         { color: var(--th-text)         !important; }
+
+[data-theme="navy-white"] .text-gray-300,
+[data-theme="mint-teal"]  .text-gray-300      { color: color-mix(in srgb, var(--th-text) 88%, transparent) !important; }
+
+[data-theme="navy-white"] .text-gray-400,
+[data-theme="mint-teal"]  .text-gray-400      { color: color-mix(in srgb, var(--th-text) 78%, transparent) !important; }
+
+[data-theme="navy-white"] .text-gray-500,
+[data-theme="mint-teal"]  .text-gray-500      { color: color-mix(in srgb, var(--th-text) 65%, transparent) !important; }
+
+[data-theme="navy-white"] .text-gray-600,
+[data-theme="mint-teal"]  .text-gray-600      { color: color-mix(in srgb, var(--th-text) 55%, transparent) !important; }
+
+/* ── 有色バッジ・ボタンは白テキスト維持（text-white 上書きの例外） ── */
+[data-theme="navy-white"] .bg-red-500,    [data-theme="mint-teal"] .bg-red-500,
+[data-theme="navy-white"] .bg-red-600,    [data-theme="mint-teal"] .bg-red-600,
+[data-theme="navy-white"] .bg-red-700,    [data-theme="mint-teal"] .bg-red-700,
+[data-theme="navy-white"] .bg-orange-500, [data-theme="mint-teal"] .bg-orange-500,
+[data-theme="navy-white"] .bg-orange-600, [data-theme="mint-teal"] .bg-orange-600,
+[data-theme="navy-white"] .bg-orange-700, [data-theme="mint-teal"] .bg-orange-700,
+[data-theme="navy-white"] .bg-blue-500,   [data-theme="mint-teal"] .bg-blue-500,
+[data-theme="navy-white"] .bg-blue-600,   [data-theme="mint-teal"] .bg-blue-600,
+[data-theme="navy-white"] .bg-blue-700,   [data-theme="mint-teal"] .bg-blue-700,
+[data-theme="navy-white"] .bg-emerald-500,[data-theme="mint-teal"] .bg-emerald-500,
+[data-theme="navy-white"] .bg-emerald-600,[data-theme="mint-teal"] .bg-emerald-600,
+[data-theme="navy-white"] .bg-teal-500,   [data-theme="mint-teal"] .bg-teal-500,
+[data-theme="navy-white"] .bg-teal-600,   [data-theme="mint-teal"] .bg-teal-600,
+[data-theme="navy-white"] .bg-violet-500, [data-theme="mint-teal"] .bg-violet-500,
+[data-theme="navy-white"] .bg-violet-600, [data-theme="mint-teal"] .bg-violet-600,
+[data-theme="navy-white"] .bg-amber-500,  [data-theme="mint-teal"] .bg-amber-500,
+[data-theme="navy-white"] .bg-amber-600,  [data-theme="mint-teal"] .bg-amber-600 {
+  color: white !important;
+}
+
+/* ── ボーダー ── */
+[data-theme="navy-white"] .border-\[\#C5A059\],
+[data-theme="mint-teal"]  .border-\[\#C5A059\]       { border-color: var(--th-accent) !important; }
+
+[data-theme="navy-white"] .border-\[\#C5A059\]\/20,
+[data-theme="mint-teal"]  .border-\[\#C5A059\]\/20   { border-color: color-mix(in srgb, var(--th-accent) 20%, transparent) !important; }
+
+[data-theme="navy-white"] .border-\[\#C5A059\]\/30,
+[data-theme="mint-teal"]  .border-\[\#C5A059\]\/30   { border-color: color-mix(in srgb, var(--th-accent) 30%, transparent) !important; }
+
+[data-theme="navy-white"] .border-\[\#C5A059\]\/40,
+[data-theme="mint-teal"]  .border-\[\#C5A059\]\/40   { border-color: color-mix(in srgb, var(--th-accent) 40%, transparent) !important; }
+
+[data-theme="navy-white"] .border-\[\#C5A059\]\/50,
+[data-theme="mint-teal"]  .border-\[\#C5A059\]\/50   { border-color: color-mix(in srgb, var(--th-accent) 50%, transparent) !important; }
+
+[data-theme="navy-white"] .border-gray-700,
+[data-theme="mint-teal"]  .border-gray-700    { border-color: color-mix(in srgb, var(--th-accent) 30%, transparent) !important; }
+
+[data-theme="navy-white"] .border-gray-800,
+[data-theme="mint-teal"]  .border-gray-800    { border-color: color-mix(in srgb, var(--th-accent) 18%, transparent) !important; }
+
+/* ── 標準グレー背景 ── */
+[data-theme="navy-white"] .bg-gray-700,
+[data-theme="mint-teal"]  .bg-gray-700  { background-color: color-mix(in srgb, var(--th-accent) 12%, transparent) !important; }
+
+[data-theme="navy-white"] .bg-gray-800,
+[data-theme="mint-teal"]  .bg-gray-800  { background-color: color-mix(in srgb, var(--th-accent)  8%, transparent) !important; }
+
+[data-theme="navy-white"] .divide-gray-800 > * + *,
+[data-theme="mint-teal"]  .divide-gray-800 > * + * { border-color: color-mix(in srgb, var(--th-accent) 8%, transparent) !important; }
+
+/* ── アクセントホバー背景 ── */
+[data-theme="navy-white"] .hover\:bg-\[\#E6C687\]:hover,
+[data-theme="mint-teal"]  .hover\:bg-\[\#E6C687\]:hover { background-color: var(--th-accent-hover) !important; }
+
+/* ── グラデーション（ロゴ等） ── */
+[data-theme="navy-white"] .from-\[\#C5A059\],
+[data-theme="mint-teal"]  .from-\[\#C5A059\] { --tw-gradient-from: var(--th-accent) var(--tw-gradient-from-position) !important; }
+
+[data-theme="navy-white"] .to-\[\#E6C687\],
+[data-theme="mint-teal"]  .to-\[\#E6C687\]   { --tw-gradient-to: var(--th-accent-hover) var(--tw-gradient-to-position) !important; }
+
+/* ── placeholder ── */
+[data-theme="navy-white"] .placeholder-gray-600::placeholder,
+[data-theme="mint-teal"]  .placeholder-gray-600::placeholder { color: color-mix(in srgb, var(--th-text) 35%, transparent) !important; }
+
+/* ── フォーム要素 ── */
+[data-theme="navy-white"] select,
+[data-theme="navy-white"] input[type="text"],
+[data-theme="navy-white"] input[type="email"],
+[data-theme="navy-white"] input[type="number"],
+[data-theme="navy-white"] textarea,
+[data-theme="mint-teal"]  select,
+[data-theme="mint-teal"]  input[type="text"],
+[data-theme="mint-teal"]  input[type="email"],
+[data-theme="mint-teal"]  input[type="number"],
+[data-theme="mint-teal"]  textarea {
+  background-color: var(--th-input) !important;
+  color: var(--th-text) !important;
+  border-color: color-mix(in srgb, var(--th-accent) 20%, transparent) !important;
+}
+
+[data-theme="navy-white"] select option,
+[data-theme="mint-teal"]  select option {
+  background-color: var(--th-surface) !important;
+  color: var(--th-text) !important;
+}
+
+/* ── Pipeline カード背景（ダーク hex → ライト色） ── */
+[data-theme="navy-white"] .bg-\[\#131C38\],
+[data-theme="mint-teal"]  .bg-\[\#131C38\] { background-color: #F4F6FB !important; }
+
+[data-theme="navy-white"] .bg-\[\#1C1808\],
+[data-theme="mint-teal"]  .bg-\[\#1C1808\] { background-color: #FFFBEB !important; }
+
+[data-theme="navy-white"] .bg-\[\#080E1F\],
+[data-theme="mint-teal"]  .bg-\[\#080E1F\] { background-color: #EFF6FF !important; }
+
+[data-theme="navy-white"] .bg-\[\#071510\],
+[data-theme="mint-teal"]  .bg-\[\#071510\] { background-color: #F0FDF4 !important; }
+
+[data-theme="navy-white"] .bg-\[\#060E18\],
+[data-theme="mint-teal"]  .bg-\[\#060E18\] { background-color: #F0F9FF !important; }
+
+[data-theme="navy-white"] .bg-\[\#0D0714\],
+[data-theme="mint-teal"]  .bg-\[\#0D0714\] { background-color: #FAF5FF !important; }
+
+[data-theme="navy-white"] .bg-\[\#051210\],
+[data-theme="mint-teal"]  .bg-\[\#051210\] { background-color: #F0FDFA !important; }
+
+[data-theme="navy-white"] .bg-\[\#130808\],
+[data-theme="mint-teal"]  .bg-\[\#130808\] { background-color: #FFF5F5 !important; }
+
+[data-theme="navy-white"] .bg-\[\#1C284D\],
+[data-theme="mint-teal"]  .bg-\[\#1C284D\] { background-color: var(--th-surface) !important; }
+
+/* カラム下部ドロップゾーン */
+[data-theme="navy-white"] .bg-\[\#0A0F1D\]\/40,
+[data-theme="mint-teal"]  .bg-\[\#0A0F1D\]\/40 { background-color: color-mix(in srgb, var(--th-accent) 6%, transparent) !important; }
+
+/* 補足バー（マスタ管理・ヒント行）*/
+[data-theme="navy-white"] .bg-\[\#0A0F1D\]\/60,
+[data-theme="mint-teal"]  .bg-\[\#0A0F1D\]\/60 {
+  background-color: color-mix(in srgb, var(--th-accent) 10%, transparent) !important;
+  border-left: 3px solid var(--th-accent) !important;
+}
+
+/* opacity 付き dark bg */
+[data-theme="navy-white"] .bg-\[\#16223F\]\/60,
+[data-theme="navy-white"] .bg-\[\#16223F\]\/80,
+[data-theme="mint-teal"]  .bg-\[\#16223F\]\/60,
+[data-theme="mint-teal"]  .bg-\[\#16223F\]\/80 { background-color: var(--th-input) !important; }
+
+[data-theme="navy-white"] .bg-\[\#1C2C54\]\/40,
+[data-theme="navy-white"] .bg-\[\#1C2C54\]\/60,
+[data-theme="mint-teal"]  .bg-\[\#1C2C54\]\/40,
+[data-theme="mint-teal"]  .bg-\[\#1C2C54\]\/60 { background-color: var(--th-elevated) !important; }
+
+/* ── Pipeline 列ヘッダー（ドロップ時オーバーレイ） ── */
+[data-theme="navy-white"] .bg-gray-800\/40,
+[data-theme="mint-teal"]  .bg-gray-800\/40    { background-color: rgba(107,114,128,0.10) !important; }
+
+[data-theme="navy-white"] .bg-yellow-900\/20,
+[data-theme="mint-teal"]  .bg-yellow-900\/20  { background-color: rgba(202,138,4,0.10)   !important; }
+
+[data-theme="navy-white"] .bg-blue-900\/20,
+[data-theme="mint-teal"]  .bg-blue-900\/20    { background-color: rgba(29,78,216,0.08)   !important; }
+
+[data-theme="navy-white"] .bg-emerald-900\/20,
+[data-theme="mint-teal"]  .bg-emerald-900\/20 { background-color: rgba(5,150,105,0.08)   !important; }
+
+[data-theme="navy-white"] .bg-sky-900\/20,
+[data-theme="mint-teal"]  .bg-sky-900\/20     { background-color: rgba(2,132,199,0.08)   !important; }
+
+[data-theme="navy-white"] .bg-violet-900\/20,
+[data-theme="mint-teal"]  .bg-violet-900\/20  { background-color: rgba(124,58,237,0.08)  !important; }
+
+[data-theme="navy-white"] .bg-amber-900\/20,
+[data-theme="mint-teal"]  .bg-amber-900\/20   { background-color: rgba(217,119,6,0.10)   !important; }
+
+[data-theme="navy-white"] .bg-teal-900\/20,
+[data-theme="mint-teal"]  .bg-teal-900\/20    { background-color: rgba(13,148,136,0.08)  !important; }
+
+[data-theme="navy-white"] .bg-red-950\/20,
+[data-theme="mint-teal"]  .bg-red-950\/20     { background-color: rgba(220,38,38,0.07)   !important; }
+
+/* ── Pipeline 列ヘッダー背景 ── */
+[data-theme="navy-white"] .bg-yellow-900\/60,
+[data-theme="mint-teal"]  .bg-yellow-900\/60  { background-color: rgba(202,138,4,0.20)   !important; }
+
+[data-theme="navy-white"] .bg-blue-900\/60,
+[data-theme="mint-teal"]  .bg-blue-900\/60    { background-color: rgba(29,78,216,0.18)   !important; }
+
+[data-theme="navy-white"] .bg-emerald-900\/60,
+[data-theme="mint-teal"]  .bg-emerald-900\/60 { background-color: rgba(5,150,105,0.18)   !important; }
+
+[data-theme="navy-white"] .bg-sky-900\/60,
+[data-theme="mint-teal"]  .bg-sky-900\/60     { background-color: rgba(2,132,199,0.18)   !important; }
+
+[data-theme="navy-white"] .bg-violet-900\/60,
+[data-theme="mint-teal"]  .bg-violet-900\/60  { background-color: rgba(124,58,237,0.18)  !important; }
+
+[data-theme="navy-white"] .bg-amber-900\/60,
+[data-theme="mint-teal"]  .bg-amber-900\/60   { background-color: rgba(217,119,6,0.20)   !important; }
+
+[data-theme="navy-white"] .bg-teal-900\/60,
+[data-theme="mint-teal"]  .bg-teal-900\/60    { background-color: rgba(13,148,136,0.18)  !important; }
+
+[data-theme="navy-white"] .bg-red-950\/60,
+[data-theme="mint-teal"]  .bg-red-950\/60     { background-color: rgba(220,38,38,0.15)   !important; }
+
+/* ── ステータス色テキスト → ダーク系に ── */
+[data-theme="navy-white"] .text-yellow-300,
+[data-theme="mint-teal"]  .text-yellow-300 { color: #92400E !important; }
+
+[data-theme="navy-white"] .text-blue-300,
+[data-theme="mint-teal"]  .text-blue-300   { color: #1E40AF !important; }
+
+[data-theme="navy-white"] .text-emerald-300,
+[data-theme="mint-teal"]  .text-emerald-300{ color: #065F46 !important; }
+
+[data-theme="navy-white"] .text-sky-300,
+[data-theme="mint-teal"]  .text-sky-300    { color: #075985 !important; }
+
+[data-theme="navy-white"] .text-violet-300,
+[data-theme="mint-teal"]  .text-violet-300 { color: #5B21B6 !important; }
+
+[data-theme="navy-white"] .text-amber-300,
+[data-theme="mint-teal"]  .text-amber-300  { color: #92400E !important; }
+
+[data-theme="navy-white"] .text-teal-300,
+[data-theme="mint-teal"]  .text-teal-300   { color: #134E4A !important; }
+
+[data-theme="navy-white"] .text-red-400,
+[data-theme="mint-teal"]  .text-red-400    { color: #991B1B !important; }
+
+[data-theme="navy-white"] .text-teal-400,
+[data-theme="mint-teal"]  .text-teal-400   { color: #0F766E !important; }
+
+[data-theme="navy-white"] .text-violet-400,
+[data-theme="mint-teal"]  .text-violet-400 { color: #6D28D9 !important; }
+
+[data-theme="navy-white"] .text-amber-400,
+[data-theme="mint-teal"]  .text-amber-400  { color: #B45309 !important; }
+
+/* 空列・補足テキスト */
+[data-theme="navy-white"] .text-gray-700,
+[data-theme="mint-teal"]  .text-gray-700 { color: color-mix(in srgb, var(--th-text) 30%, transparent) !important; }
+
+/* hover:bg-white/10 → ライトテーマは暗めオーバーレイ */
+[data-theme="navy-white"] .hover\:bg-white\/10:hover,
+[data-theme="mint-teal"]  .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.05) !important; }
+
+[data-theme="navy-white"] .hover\:bg-white\/5:hover,
+[data-theme="mint-teal"]  .hover\:bg-white\/5:hover  { background-color: rgba(0,0,0,0.03) !important; }
+
+/* ── StaffDashboard / ManagerDashboard 固有 hex ── */
+[data-theme="navy-white"] .bg-\[\#131F3F\],
+[data-theme="mint-teal"]  .bg-\[\#131F3F\]   { background-color: var(--th-elevated) !important; }
+
+[data-theme="navy-white"] .bg-\[\#1C2C54\]\/20,
+[data-theme="mint-teal"]  .bg-\[\#1C2C54\]\/20  { background-color: color-mix(in srgb, var(--th-accent) 8%, transparent) !important; }
+
+[data-theme="navy-white"] .hover\:bg-\[\#1C2C54\]\/40:hover,
+[data-theme="mint-teal"]  .hover\:bg-\[\#1C2C54\]\/40:hover { background-color: color-mix(in srgb, var(--th-accent) 14%, transparent) !important; }
+
+[data-theme="navy-white"] .bg-\[\#2A1E24\]\/60,
+[data-theme="mint-teal"]  .bg-\[\#2A1E24\]\/60 { background-color: rgba(244,63,94,0.08) !important; }
+
+[data-theme="navy-white"] .bg-\[\#1C233C\]\/60,
+[data-theme="mint-teal"]  .bg-\[\#1C233C\]\/60 { background-color: rgba(59,130,246,0.10) !important; }
+
+[data-theme="navy-white"] .bg-\[\#19242E\]\/60,
+[data-theme="mint-teal"]  .bg-\[\#19242E\]\/60 { background-color: rgba(245,158,11,0.10) !important; }
+
+[data-theme="navy-white"] .bg-\[\#1A0A0A\],
+[data-theme="mint-teal"]  .bg-\[\#1A0A0A\]   { background-color: #FFF5F5 !important; }
+
+[data-theme="navy-white"] .bg-\[\#0D1428\],
+[data-theme="mint-teal"]  .bg-\[\#0D1428\]   { background-color: var(--th-surface) !important; }
+
+[data-theme="navy-white"] .bg-\[\#12192C\],
+[data-theme="mint-teal"]  .bg-\[\#12192C\]   { background-color: var(--th-inner)   !important; }
+
+[data-theme="navy-white"] .bg-\[\#1C233C\],
+[data-theme="mint-teal"]  .bg-\[\#1C233C\]   { background-color: var(--th-elevated) !important; }
+
+[data-theme="navy-white"] .bg-indigo-950,
+[data-theme="mint-teal"]  .bg-indigo-950  { background-color: rgba(79,70,229,0.12) !important; }
+
+[data-theme="navy-white"] .bg-purple-950,
+[data-theme="mint-teal"]  .bg-purple-950  { background-color: rgba(147,51,234,0.12) !important; }
+
+/* ════════════════════════════════════════════════════════════════
+   パイプラインカード ホバー
+   CSS :hover 疑似クラスを直接使用（JS 不要）
+   ════════════════════════════════════════════════════════════════ */
+
+/* Navy×Gold (デフォルト): Tailwind の hover:brightness-110 をそのまま使用
+   → .pl-card に hover:brightness-110 クラスを残しておく */
+
+/* ライトテーマ: brightness をキャンセルして色付きホバーに */
+[data-theme="navy-white"] .pl-card:hover,
+[data-theme="mint-teal"]  .pl-card:hover {
+  filter: none !important;
+}
+
+/* navy-white ステータス別ホバー */
+[data-theme="navy-white"] .pl-card[data-status="lead"]:hover         { background-color: #E4E9F5 !important; }
+[data-theme="navy-white"] .pl-card[data-status="estimate"]:hover     { background-color: #FFF3C4 !important; }
+[data-theme="navy-white"] .pl-card[data-status="contract"]:hover     { background-color: #DCEEFF !important; }
+[data-theme="navy-white"] .pl-card[data-status="construction"]:hover { background-color: #D6F5E0 !important; }
+[data-theme="navy-white"] .pl-card[data-status="completed"]:hover    { background-color: #D6EEFF !important; }
+[data-theme="navy-white"] .pl-card[data-status="settlement"]:hover   { background-color: #EFE5FF !important; }
+[data-theme="navy-white"] .pl-card[data-status="closed"]:hover       { background-color: #D6FAF3 !important; }
+[data-theme="navy-white"] .pl-card[data-status="lost"]:hover         { background-color: #FFE8E8 !important; }
+
+/* mint-teal ステータス別ホバー */
+[data-theme="mint-teal"] .pl-card[data-status="lead"]:hover          { background-color: #C8EDE7 !important; }
+[data-theme="mint-teal"] .pl-card[data-status="estimate"]:hover      { background-color: #C8EDE7 !important; }
+[data-theme="mint-teal"] .pl-card[data-status="contract"]:hover      { background-color: #C4EEF0 !important; }
+[data-theme="mint-teal"] .pl-card[data-status="construction"]:hover  { background-color: #BDEAE3 !important; }
+[data-theme="mint-teal"] .pl-card[data-status="completed"]:hover     { background-color: #C4EEF0 !important; }
+[data-theme="mint-teal"] .pl-card[data-status="settlement"]:hover    { background-color: #C8EDE7 !important; }
+[data-theme="mint-teal"] .pl-card[data-status="closed"]:hover        { background-color: #BDEAE3 !important; }
+[data-theme="mint-teal"] .pl-card[data-status="lost"]:hover          { background-color: #C8EDE7 !important; }
