@@ -154,4 +154,62 @@ body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
     background-color: var(--th-surface) !important;
     color: var(--th-text) !important;
   }
+
+  /* ── ホバー時 brightness (ライト背景では暗くする) ─ */
+  & .hover\:brightness-110:hover { filter: brightness(0.96) !important; }
+
+  /* ── Pipeline カード背景（ステータスごとの個別 hex） */
+  & .bg-\[\#131C38\] { background-color: #F4F6FB !important; }
+  & .bg-\[\#1C1808\] { background-color: #FFFBEB !important; }
+  & .bg-\[\#080E1F\] { background-color: #EFF6FF !important; }
+  & .bg-\[\#071510\] { background-color: #F0FDF4 !important; }
+  & .bg-\[\#060E18\] { background-color: #F0F9FF !important; }
+  & .bg-\[\#0D0714\] { background-color: #FAF5FF !important; }
+  & .bg-\[\#051210\] { background-color: #F0FDFA !important; }
+  & .bg-\[\#130808\] { background-color: #FFF5F5 !important; }
+  & .bg-\[\#1C284D\] { background-color: var(--th-surface) !important; }
+
+  /* カラム下部ドロップゾーン */
+  & .bg-\[\#0A0F1D\]\/40 { background-color: color-mix(in srgb, var(--th-accent) 6%, transparent) !important; }
+
+  /* Pipeline 列ヘッダー（ドロップ時オーバーレイ） */
+  & .bg-gray-800\/40    { background-color: rgba(107,114,128,0.10) !important; }
+  & .bg-yellow-900\/20  { background-color: rgba(202,138,4,0.10)   !important; }
+  & .bg-blue-900\/20    { background-color: rgba(29,78,216,0.08)   !important; }
+  & .bg-emerald-900\/20 { background-color: rgba(5,150,105,0.08)   !important; }
+  & .bg-sky-900\/20     { background-color: rgba(2,132,199,0.08)   !important; }
+  & .bg-violet-900\/20  { background-color: rgba(124,58,237,0.08)  !important; }
+  & .bg-amber-900\/20   { background-color: rgba(217,119,6,0.10)   !important; }
+  & .bg-teal-900\/20    { background-color: rgba(13,148,136,0.08)  !important; }
+  & .bg-red-950\/20     { background-color: rgba(220,38,38,0.07)   !important; }
+
+  /* Pipeline 列ヘッダー背景 */
+  & .bg-gray-800        { background-color: #E5E7EB !important; }
+  & .bg-yellow-900\/60  { background-color: rgba(202,138,4,0.20)   !important; }
+  & .bg-blue-900\/60    { background-color: rgba(29,78,216,0.18)   !important; }
+  & .bg-emerald-900\/60 { background-color: rgba(5,150,105,0.18)   !important; }
+  & .bg-sky-900\/60     { background-color: rgba(2,132,199,0.18)   !important; }
+  & .bg-violet-900\/60  { background-color: rgba(124,58,237,0.18)  !important; }
+  & .bg-amber-900\/60   { background-color: rgba(217,119,6,0.20)   !important; }
+  & .bg-teal-900\/60    { background-color: rgba(13,148,136,0.18)  !important; }
+  & .bg-red-950\/60     { background-color: rgba(220,38,38,0.15)   !important; }
+
+  /* ステータス色テキスト → ダーク系に */
+  & .text-yellow-300 { color: #92400E !important; }
+  & .text-blue-300   { color: #1E40AF !important; }
+  & .text-emerald-300{ color: #065F46 !important; }
+  & .text-sky-300    { color: #075985 !important; }
+  & .text-violet-300 { color: #5B21B6 !important; }
+  & .text-amber-300  { color: #92400E !important; }
+  & .text-teal-300   { color: #134E4A !important; }
+  & .text-red-400    { color: #991B1B !important; }
+  & .text-teal-400   { color: #0F766E !important; }
+  & .text-violet-400 { color: #6D28D9 !important; }
+  & .text-amber-400  { color: #B45309 !important; }
+
+  /* 空列・補足テキスト */
+  & .text-gray-700 { color: color-mix(in srgb, var(--th-text) 30%, transparent) !important; }
+
+  /* hover:bg-white/10 → ライトテーマは暗めオーバーレイ */
+  & .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.05) !important; }
 }
