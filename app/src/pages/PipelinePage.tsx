@@ -188,9 +188,10 @@ const KanbanCard = memo(function KanbanCard({
         e.dataTransfer.effectAllowed = 'move';
       }}
       onClick={() => onCardClick(project.projectId)}
+      data-status={project.status}
       className={`
         relative rounded-lg border ${cfg.cardCls}
-        p-3 cursor-pointer select-none
+        p-3 cursor-pointer select-none pl-card
         hover:brightness-110 transition-colors
         ${isDragging ? 'opacity-30 scale-95' : ''}
       `}
