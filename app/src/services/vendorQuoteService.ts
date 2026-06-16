@@ -3,7 +3,7 @@ import {
   collection, query, where, getDocs,
 } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { httpsCallableFromURL } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { db, APP_ID, getCol, storage, fbFunctions } from '@/firebase/config';
 import type { VendorQuoteRequest, VendorQuoteStatus, VendorQuoteItem } from '@/types';
 import { createNotification } from './notificationService';
@@ -280,10 +280,10 @@ const normalizeImageForGemini = (file: File): Promise<{ data: string; mimeType: 
     img.src = url;
   });
 
-const analyzeVendorDocFn = httpsCallableFromURL<
+const analyzeVendorDocFn = httpsCallable<
   { base64: string; mimeType: string },
   { items: unknown[]; date: string | null; invoiceTotal: number | null }
->(fbFunctions, '/analyzeVendorDoc');
+>(fbFunctions, 'analyzeVendorDoc');
 
 /** 請求書PDF・画像をGemini OCRで解析し、合計金額を抽出する（読み取れない場合は null） */
 export const analyzeInvoiceAmount = async (file: File): Promise<number | null> => {

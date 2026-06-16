@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, Component } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 
 // ─── ErrorBoundary ────────────────────────────────────────────
@@ -50,7 +50,7 @@ import {
   LucideBell, LucideX, LucideCheckCheck, LucideMail, LucideMailOpen,
   LucideLayoutDashboard, LucideHistory,
 } from 'lucide-react';
-import type { UserRole, AppNotification } from '@/types';
+import type { UserRole, AppNotification, ColorTheme } from '@/types';
 import { useAuth }         from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { markNotificationRead, markAllNotificationsRead } from '@/services/notificationService';
@@ -70,6 +70,7 @@ import { useVendors }                from '@/hooks/useVendors';
 import { useVendorQuoteRequests }   from '@/hooks/useVendorQuoteRequests';
 import { useToast }        from '@/hooks/useToast';
 import { logout }          from '@/services/authService';
+import { updateUserTheme } from '@/services/userService';
 import { seedInitialData, seedEstimateTemplates, seedVendors, seedContractTemplates } from '@/services/seedService';
 import LoginPage        from '@/pages/LoginPage';
 import StaffDashboard   from '@/pages/StaffDashboard';
@@ -110,6 +111,38 @@ export default function App() {
   const { message: toastMsg, showToast } = useToast();
 
   const currentRole: UserRole = user?.role ?? 'staff';
+
+  // ─── カラーテーマ ─────────────────────────────────────────────
+  const [theme, setTheme] = useState<ColorTheme>(
+    () => (localStorage.getItem('colorTheme') as ColorTheme | null) ?? user?.theme ?? 'navy-gold',
+  );
+  const [showThemePicker, setShowThemePicker] = useState(false);
+  const themePickerRef = useRef<HTMLDivElement>(null);
+
+  // Firestore のテーマが届いたら同期（初回ログイン時）
+  useEffect(() => {
+    if (user?.theme && user.theme !== theme) setTheme(user.theme);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
+
+  const handleThemeChange = useCallback((t: ColorTheme) => {
+    setTheme(t);
+    localStorage.setItem('colorTheme', t);
+    setShowThemePicker(false);
+    if (uid) updateUserTheme(uid, t).catch(console.error);
+  }, [uid]);
+
+  // テーマピッカー外クリックで閉じる
+  useEffect(() => {
+    if (!showThemePicker) return;
+    const handler = (e: MouseEvent) => {
+      if (themePickerRef.current && !themePickerRef.current.contains(e.target as Node)) {
+        setShowThemePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showThemePicker]);
 
   // staff = 自分の名前固定; manager/admin = ドロップダウンで選択
   const [selectedStaff, setSelectedStaff] = useState<string>('');
@@ -259,7 +292,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0F1D] text-[#E2E8F0]">
+    <div className="min-h-screen bg-[#0A0F1D] text-[#E2E8F0]" data-theme={theme}>
       {/* ─── ヘッダー ─── */}
       <header className="sticky top-0 z-40 bg-[#0B132B]/95 backdrop-blur border-b border-[#C5A059]/20 shadow-lg px-4 py-3">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
@@ -406,6 +439,50 @@ export default function App() {
                 )}
               </div>
             )}
+
+            {/* テーマピッカー */}
+            <div className="relative" ref={themePickerRef}>
+              <button
+                onClick={() => setShowThemePicker(p => !p)}
+                title="カラーテーマ切替"
+                className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition ${
+                  showThemePicker
+                    ? 'bg-[#1C2C54] text-[#E6C687] border-[#C5A059]/50'
+                    : 'text-gray-400 hover:text-[#E6C687] border-gray-700 hover:border-[#C5A059]/50'
+                }`}
+              >
+                <span style={{ fontSize: 14 }}>🎨</span>
+              </button>
+              {showThemePicker && (
+                <div className="absolute right-0 top-10 z-50 bg-[#111A35] border border-gray-700 rounded-xl shadow-2xl p-3 w-52">
+                  <p className="text-[10px] text-gray-500 mb-2 px-1">カラーテーマ</p>
+                  {(
+                    [
+                      { id: 'navy-gold',   label: 'Navy × Gold',  dot: '#C5A059', bg: '#0A0F1D' },
+                      { id: 'navy-white',  label: 'Navy × White', dot: '#1B3A6B', bg: '#F8FAFB' },
+                      { id: 'mint-teal',   label: 'Mint × Teal',  dot: '#0D9488', bg: '#F0F7F6' },
+                    ] as { id: ColorTheme; label: string; dot: string; bg: string }[]
+                  ).map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => handleThemeChange(t.id)}
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition mb-1 ${
+                        theme === t.id
+                          ? 'bg-[#C5A059]/15 text-[#E6C687]'
+                          : 'text-gray-300 hover:bg-[#1C2C54]/60 hover:text-white'
+                      }`}
+                    >
+                      <span className="flex gap-1 shrink-0">
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: t.bg, border: '1px solid #4b5563', display: 'inline-block' }} />
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: t.dot, display: 'inline-block' }} />
+                      </span>
+                      {t.label}
+                      {theme === t.id && <span className="ml-auto text-[#C5A059]">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* ログアウト */}
             <button

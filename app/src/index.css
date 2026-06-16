@@ -13,9 +13,138 @@
 }
 .mic-pulse { animation: mic-pulse 1.5s infinite; }
 
+/* ════════════════════════════════════════════════
+   カラーテーマ CSS 変数
+   ════════════════════════════════════════════════ */
+
+:root {
+  --th-base:           #0A0F1D;
+  --th-nav:            #0B132B;
+  --th-surface:        #111A35;
+  --th-inner:          #0D1424;
+  --th-input:          #16223F;
+  --th-elevated:       #1C2C54;
+  --th-accent:         #C5A059;
+  --th-accent-hover:   #E6C687;
+  --th-accent-muted:   rgba(197,160,89,0.15);
+  --th-text:           #E2E8F0;
+  --th-text-on-accent: #0A0F1D;
+  --scrollbar-track:   #0B132B;
+  --scrollbar-thumb:   #C5A059;
+}
+
+[data-theme="navy-white"] {
+  --th-base:           #F8FAFB;
+  --th-nav:            #FFFFFF;
+  --th-surface:        #FFFFFF;
+  --th-inner:          #EEF2F7;
+  --th-input:          #F1F5F9;
+  --th-elevated:       #E8EEF7;
+  --th-accent:         #1B3A6B;
+  --th-accent-hover:   #2D5BA3;
+  --th-accent-muted:   rgba(27,58,107,0.10);
+  --th-text:           #1E293B;
+  --th-text-on-accent: #FFFFFF;
+  --scrollbar-track:   #E8EEF7;
+  --scrollbar-thumb:   #1B3A6B;
+}
+
+[data-theme="mint-teal"] {
+  --th-base:           #F0F7F6;
+  --th-nav:            #FFFFFF;
+  --th-surface:        #FFFFFF;
+  --th-inner:          #E1F5EE;
+  --th-input:          #E8F5F2;
+  --th-elevated:       #D1EDE8;
+  --th-accent:         #0D9488;
+  --th-accent-hover:   #0F766E;
+  --th-accent-muted:   rgba(13,148,136,0.10);
+  --th-text:           #134E4A;
+  --th-text-on-accent: #FFFFFF;
+  --scrollbar-track:   #E1F5EE;
+  --scrollbar-thumb:   #0D9488;
+}
+
+/* ════════════════════════════════════════════════
+   スクロールバー（CSS 変数を参照）
+   ════════════════════════════════════════════════ */
 ::-webkit-scrollbar       { width: 5px; }
-::-webkit-scrollbar-track { background: #0B132B; }
-::-webkit-scrollbar-thumb { background: #C5A059; border-radius: 10px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 10px; }
 
 body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
 #root { min-height: 100vh; }
+
+/* ════════════════════════════════════════════════
+   ライトテーマ共通: Tailwind 任意値クラスを上書き
+   (navy-white / mint-teal 共通)
+   ════════════════════════════════════════════════ */
+
+[data-theme="navy-white"],
+[data-theme="mint-teal"] {
+
+  /* ── 背景 ───────────────────────────────── */
+  & .bg-\[\#0A0F1D\]   { background-color: var(--th-base)     !important; }
+  & .bg-\[\#0B132B\]   { background-color: var(--th-nav)      !important; }
+  & .bg-\[\#0B132B\]\/95 { background-color: color-mix(in srgb, var(--th-nav) 95%, transparent) !important; }
+  & .bg-\[\#111A35\]   { background-color: var(--th-surface)  !important; }
+  & .bg-\[\#0D1424\]   { background-color: var(--th-inner)    !important; }
+  & .bg-\[\#16223F\]   { background-color: var(--th-input)    !important; }
+  & .bg-\[\#1C2C54\]   { background-color: var(--th-elevated) !important; }
+  & .bg-\[\#1C2C54\]\/60 { background-color: color-mix(in srgb, var(--th-elevated) 60%, transparent) !important; }
+
+  /* ── アクセント背景 ─────────────────────── */
+  & .bg-\[\#C5A059\]         { background-color: var(--th-accent)       !important; }
+  & .bg-\[\#C5A059\]\/5      { background-color: color-mix(in srgb, var(--th-accent)  5%, transparent) !important; }
+  & .bg-\[\#C5A059\]\/10     { background-color: color-mix(in srgb, var(--th-accent) 10%, transparent) !important; }
+  & .bg-\[\#C5A059\]\/15     { background-color: color-mix(in srgb, var(--th-accent) 15%, transparent) !important; }
+  & .bg-\[\#C5A059\]\/20     { background-color: color-mix(in srgb, var(--th-accent) 20%, transparent) !important; }
+  & .bg-\[\#E6C687\]         { background-color: var(--th-accent-hover) !important; }
+
+  /* ── テキスト ───────────────────────────── */
+  & .text-\[\#C5A059\]  { color: var(--th-accent)       !important; }
+  & .text-\[\#E6C687\]  { color: var(--th-accent-hover) !important; }
+  & .text-\[\#E2E8F0\]  { color: var(--th-text)         !important; }
+  & .text-\[\#0A0F1D\]  { color: var(--th-text-on-accent) !important; }
+  & .text-white         { color: var(--th-text)         !important; }
+  & .text-gray-300      { color: color-mix(in srgb, var(--th-text) 80%, transparent) !important; }
+  & .text-gray-400      { color: color-mix(in srgb, var(--th-text) 65%, transparent) !important; }
+  & .text-gray-500      { color: color-mix(in srgb, var(--th-text) 50%, transparent) !important; }
+  & .text-gray-600      { color: color-mix(in srgb, var(--th-text) 40%, transparent) !important; }
+
+  /* ── ボーダー ───────────────────────────── */
+  & .border-\[\#C5A059\]       { border-color: var(--th-accent) !important; }
+  & .border-\[\#C5A059\]\/20   { border-color: color-mix(in srgb, var(--th-accent) 20%, transparent) !important; }
+  & .border-\[\#C5A059\]\/30   { border-color: color-mix(in srgb, var(--th-accent) 30%, transparent) !important; }
+  & .border-\[\#C5A059\]\/40   { border-color: color-mix(in srgb, var(--th-accent) 40%, transparent) !important; }
+  & .border-\[\#C5A059\]\/50   { border-color: color-mix(in srgb, var(--th-accent) 50%, transparent) !important; }
+  & .border-gray-700    { border-color: color-mix(in srgb, var(--th-accent) 15%, transparent) !important; }
+  & .border-gray-800    { border-color: color-mix(in srgb, var(--th-accent) 10%, transparent) !important; }
+
+  /* ── 標準グレー背景 ─────────────────────── */
+  & .bg-gray-700  { background-color: color-mix(in srgb, var(--th-accent) 12%, transparent) !important; }
+  & .bg-gray-800  { background-color: color-mix(in srgb, var(--th-accent)  8%, transparent) !important; }
+  & .divide-gray-800 > * + * { border-color: color-mix(in srgb, var(--th-accent) 8%, transparent) !important; }
+
+  /* ── アクセントホバー背景 ───────────────── */
+  & .hover\:bg-\[\#E6C687\]:hover { background-color: var(--th-accent-hover) !important; }
+
+  /* ── グラデーション（ロゴ等） ───────────── */
+  & .from-\[\#C5A059\] { --tw-gradient-from: var(--th-accent) var(--tw-gradient-from-position) !important; }
+  & .to-\[\#E6C687\]   { --tw-gradient-to:   var(--th-accent-hover) var(--tw-gradient-to-position) !important; }
+
+  /* ── placeholder ────────────────────────── */
+  & .placeholder-gray-600::placeholder { color: color-mix(in srgb, var(--th-text) 35%, transparent) !important; }
+
+  /* ── フォーム要素 ───────────────────────── */
+  & select, & input[type="text"], & input[type="email"],
+  & input[type="number"], & textarea {
+    background-color: var(--th-input) !important;
+    color: var(--th-text) !important;
+    border-color: color-mix(in srgb, var(--th-accent) 20%, transparent) !important;
+  }
+  & select option {
+    background-color: var(--th-surface) !important;
+    color: var(--th-text) !important;
+  }
+}

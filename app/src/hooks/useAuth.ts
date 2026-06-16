@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db, APP_ID } from '@/firebase/config';
-import type { AppUser, NotificationSettings } from '@/types';
+import type { AppUser, NotificationSettings, ColorTheme } from '@/types';
 
 export interface AuthUser {
   uid:                  string;
@@ -10,6 +10,7 @@ export interface AuthUser {
   displayName:          string;
   role:                 AppUser['role'];
   notificationSettings?: NotificationSettings;
+  theme?:               ColorTheme;
 }
 
 export interface UseAuthReturn {
@@ -53,6 +54,7 @@ export function useAuth(): UseAuthReturn {
               displayName:          data.displayName,
               role:                 data.role,
               notificationSettings: data.notificationSettings,
+              theme:                data.theme,
             });
           } else {
             // 認証済みだがプロフィール未作成（セットアップ中の過渡状態）

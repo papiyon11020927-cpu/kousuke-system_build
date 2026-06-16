@@ -4,10 +4,18 @@
  */
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, APP_ID } from '@/firebase/config';
-import type { NotificationSettings } from '@/types';
+import type { NotificationSettings, ColorTheme } from '@/types';
 
 const userRef = (uid: string) =>
   doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', uid);
+
+/** カラーテーマを更新 */
+export const updateUserTheme = async (
+  userId: string,
+  theme:  ColorTheme,
+): Promise<void> => {
+  await updateDoc(userRef(userId), { theme, updatedAt: new Date().toISOString() });
+};
 
 /** メール通知設定を更新 */
 export const updateNotificationSettings = async (
