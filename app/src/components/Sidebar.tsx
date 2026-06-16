@@ -567,7 +567,7 @@ function DrawerNav({
         </button>
 
         {userPopOpen && (
-          <div className="border-t border-white/10 bg-[#0D1530]">
+          <div className="border-t border-[#C5A059]/10 bg-[#111A35]">
             <button onClick={() => { onProfileOpen(); setUserPopOpen(false); }}
               className="w-full flex items-center gap-2 px-3 py-2 text-[11px] text-gray-300 hover:bg-white/5 hover:text-white transition">
               <LucideUserCircle size={14} />プロフィール閲覧・編集
@@ -591,13 +591,13 @@ function DrawerNav({
               <div className="px-3 py-2 border-t border-white/10">
                 <p className="text-[9px] text-gray-500 mb-1">ユーザー切替（SU）</p>
                 <select value={selectedStaff} onChange={e => onStaffChange(e.target.value)}
-                  className="w-full bg-[#0D1530] border border-[#C5A059]/20 text-white text-[10px] rounded px-2 py-1 focus:outline-none">
+                  className="w-full bg-[#0B132B] border border-[#C5A059]/20 text-white text-[10px] rounded px-2 py-1 focus:outline-none">
                   {staffList.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             )}
             <button onClick={() => { onLogout(); }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-[11px] text-red-400 hover:bg-red-900/20 hover:text-red-300 transition border-t border-white/10">
+              className="w-full flex items-center gap-2 px-3 py-2 text-[11px] text-red-400 hover:bg-red-900/20 hover:text-red-300 transition border-t border-[#C5A059]/10">
               <LucideLogOut size={14} />ログアウト
             </button>
           </div>

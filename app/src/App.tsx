@@ -81,6 +81,7 @@ import ReportPage       from '@/pages/ReportPage';
 import GoalPage         from '@/pages/GoalPage';
 import DailyReportPage  from '@/pages/DailyReportPage';
 import MasterPage        from '@/pages/MasterPage';
+import ProfileModal      from '@/components/ProfileModal';
 import VendorQuotePage  from '@/pages/VendorQuotePage';
 import PipelinePage     from '@/pages/PipelinePage';
 import type { WorkspaceSection } from '@/types';
@@ -592,28 +593,14 @@ export default function App() {
         </div>
       )}
 
-      {/* ─── プロフィールモーダル（Step C で実装） ─── */}
+      {/* ─── プロフィールモーダル ─── */}
       {showProfileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="bg-[#111A35] border border-gray-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white">プロフィール</h3>
-              <button onClick={() => setShowProfileModal(false)} className="text-gray-500 hover:text-gray-300 transition">
-                <LucideX size={15} />
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-[#1C2C54] border border-[#C5A059]/30 flex items-center justify-center text-lg font-bold text-[#E6C687]">
-                {user.displayName.charAt(0)}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white">{user.displayName}</p>
-                <p className="text-xs text-gray-400">{user.email}</p>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 text-center">プロフィール編集は次フェーズで実装予定です</p>
-          </div>
-        </div>
+        <ProfileModal
+          user={user}
+          userId={uid ?? ''}
+          onClose={() => setShowProfileModal(false)}
+          onShowToast={showToast}
+        />
       )}
     </div>
   );

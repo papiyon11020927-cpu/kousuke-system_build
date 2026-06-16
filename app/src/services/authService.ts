@@ -2,6 +2,7 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import {
   signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword,
   getAuth, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail,
+  reauthenticateWithCredential, EmailAuthProvider, updatePassword,
 } from 'firebase/auth';
 import { doc, setDoc, deleteDoc, getDoc, getDocs, query, limit } from 'firebase/firestore';
 import { auth, db, APP_ID, firebaseConfig, getCol } from '@/firebase/config';
@@ -143,4 +144,15 @@ export const updateUserDisplayName = async (
   displayName: string,
 ): Promise<void> => {
   await setDoc(userRef(userId), { displayName, avatarInitials: displayName.charAt(0) }, { merge: true });
+};
+
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser || !currentUser.email) throw new Error('ログインが必要です');
+  const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+  await reauthenticateWithCredential(currentUser, credential);
+  await updatePassword(currentUser, newPassword);
 };
