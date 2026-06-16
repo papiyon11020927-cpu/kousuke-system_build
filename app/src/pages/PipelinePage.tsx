@@ -19,6 +19,35 @@ import type { Project, Customer, Estimate, Contract, ProjectStatus, UserRole } f
 import { updateProjectStatus, setLostReason } from '@/services/projectService';
 import { validateStatusTransition } from '@/utils/statusValidation';
 
+// ─── ライトテーマ用ホバー色（インラインスタイルで確実適用） ─────────
+
+const LIGHT_HOVER_BG: Partial<Record<string, Partial<Record<ProjectStatus, string>>>> = {
+  'navy-white': {
+    lead:         '#E4E9F5',
+    estimate:     '#FFF3C4',
+    contract:     '#DCEEFF',
+    construction: '#D6F5E0',
+    completed:    '#D6EEFF',
+    settlement:   '#EFE5FF',
+    closed:       '#D6FAF3',
+    lost:         '#FFE8E8',
+  },
+  'mint-teal': {
+    lead:         '#C8EDE7',
+    estimate:     '#C8EDE7',
+    contract:     '#C4EEF0',
+    construction: '#BDEAE3',
+    completed:    '#C4EEF0',
+    settlement:   '#C8EDE7',
+    closed:       '#BDEAE3',
+    lost:         '#C8EDE7',
+  },
+};
+
+function getCurrentTheme(): string {
+  return document.querySelector('[data-theme]')?.getAttribute('data-theme') ?? '';
+}
+
 // ─── 定数 ────────────────────────────────────────────────────────
 
 /** パイプライン表示列（クローズ・失注は除外） */
@@ -177,9 +206,15 @@ const KanbanCard = memo(function KanbanCard({
   isDragging:     boolean;
 }) {
   const [showMenu, setShowMenu] = useState(false);
-  const [hovered, setHovered]   = useState(false);
+  const [hoverBg, setHoverBg]   = useState<string | undefined>(undefined);
   const cfg  = STATUS_CFG[project.status];
   const next = NEXT_STATUS[project.status];
+
+  const handleMouseEnter = () => {
+    const theme = getCurrentTheme();
+    const bg = LIGHT_HOVER_BG[theme]?.[project.status];
+    setHoverBg(bg ?? undefined);
+  };
 
   return (
     <div
@@ -188,16 +223,17 @@ const KanbanCard = memo(function KanbanCard({
         e.dataTransfer.setData('projectId', project.projectId);
         e.dataTransfer.effectAllowed = 'move';
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setHoverBg(undefined)}
       onClick={() => onCardClick(project.projectId)}
       data-status={project.status}
+      style={hoverBg ? { backgroundColor: hoverBg } : undefined}
       className={`
         relative rounded-lg border ${cfg.cardCls}
         p-3 cursor-pointer select-none pl-card
-        ${hovered ? 'pl-hovered' : ''}
         transition-colors
         ${isDragging ? 'opacity-30 scale-95' : ''}
+        ${!hoverBg ? 'hover:brightness-110' : ''}
       `}
     >
       {/* 超過日数バッジ（期日超過列のみ） */}
