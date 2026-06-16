@@ -18,6 +18,10 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      { "source": "/analyzeVendorDoc",     "function": "analyzeVendorDoc",     "region": "asia-northeast1" },
+      { "source": "/signCustomerContract", "function": "signCustomerContract", "region": "asia-northeast1" },
+      { "source": "/geminiAnalyzeReport",  "function": "geminiAnalyzeReport",  "region": "asia-northeast1" },
+      { "source": "/geminiDailySummary",   "function": "geminiDailySummary",   "region": "asia-northeast1" },
       {
         "source": "**",
         "destination": "/index.html"

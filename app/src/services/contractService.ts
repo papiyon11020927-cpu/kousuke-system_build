@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallableFromURL } from 'firebase/functions';
 import { db, APP_ID, fbFunctions } from '@/firebase/config';
 import type { Contract, PaymentTerm } from '@/types';
 
@@ -41,10 +41,10 @@ export const saveContract = async (contract: Contract): Promise<void> => {
 
 /** 公開署名ページからの署名確定（Cloud Function 経由・admin権限）
  *  署名保存・案件ステータス更新・受注金額への契約金額自動反映（積算）をまとめて行う */
-const signCustomerContractFn = httpsCallable<
+const signCustomerContractFn = httpsCallableFromURL<
   { contractId: string; signatureDataUrl: string },
   { success: boolean }
->(fbFunctions, 'signCustomerContract');
+>(fbFunctions, '/signCustomerContract');
 
 export const signCustomerContract = async (
   contractId:       string,

@@ -5,16 +5,16 @@
  * ブラウザバンドルには含まれない。
  * VITE_GEMINI_API_KEY は不要になった。
  */
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallableFromURL } from 'firebase/functions';
 import { fbFunctions } from '@/firebase/config';
 import type { AiAnalysisResult, InOutLog } from '@/types';
 
 // ── Callable 関数の参照 ─────────────────────────────────────────
-const analyzeReportFn    = httpsCallable<{ text: string }, AiAnalysisResult>(
-  fbFunctions, 'geminiAnalyzeReport',
+const analyzeReportFn    = httpsCallableFromURL<{ text: string }, AiAnalysisResult>(
+  fbFunctions, '/geminiAnalyzeReport',
 );
-const dailySummaryFn     = httpsCallable<{ staffName: string; logText: string }, { summary: string }>(
-  fbFunctions, 'geminiDailySummary',
+const dailySummaryFn     = httpsCallableFromURL<{ staffName: string; logText: string }, { summary: string }>(
+  fbFunctions, '/geminiDailySummary',
 );
 
 // ─── 音声日報解析 ──────────────────────────────────────────────

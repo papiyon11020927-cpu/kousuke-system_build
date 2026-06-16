@@ -26,7 +26,7 @@ import {
   uploadVendorPhoto, uploadVendorDoc, analyzeInvoiceAmount,
 } from '@/services/vendorQuoteService';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallableFromURL } from 'firebase/functions';
 import { storage, fbFunctions } from '@/firebase/config';
 
 /** 写真を WebP に圧縮して Firebase Storage にアップロード → URL を返す */
@@ -148,10 +148,10 @@ async function normalizeImageForGemini(file: File): Promise<{ data: string; mime
 }
 
 // Cloud Functions 経由で Gemini OCR を実行（APIキーはサーバー側のみ）
-const analyzeVendorDocFn = httpsCallable<
+const analyzeVendorDocFn = httpsCallableFromURL<
   { base64: string; mimeType: string },
   GeminiOcrResult
->(fbFunctions, 'analyzeVendorDoc');
+>(fbFunctions, '/analyzeVendorDoc');
 
 async function analyzeFileWithGemini(file: File): Promise<GeminiOcrResult> {
   // BMP など Gemini 非対応形式は PNG に変換してから送信
