@@ -155,8 +155,8 @@ body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
     color: var(--th-text) !important;
   }
 
-  /* ── ホバー時 brightness (ライト背景では少し明るく) ─ */
-  & .hover\:brightness-110:hover { filter: brightness(1.03) !important; }
+  /* ── ホバー時: brightness を無効化（後でテーマ別に上書き） ─ */
+  & .hover\:brightness-110:hover { filter: none !important; }
 
   /* ── Pipeline カード背景（ステータスごとの個別 hex） */
   & .bg-\[\#131C38\] { background-color: #F4F6FB !important; }
@@ -243,4 +243,15 @@ body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
   /* アイコン背景（indigo-950 / purple-950） */
   & .bg-indigo-950  { background-color: rgba(79,70,229,0.12) !important; }
   & .bg-purple-950  { background-color: rgba(147,51,234,0.12) !important; }
+}
+
+/* ════════════════════════════════════════════════
+   ホバーオーバーレイ（テーマ別・カード用）
+   inset box-shadow でアクセント色を薄く乗せる
+   ════════════════════════════════════════════════ */
+[data-theme="navy-white"] .hover\:brightness-110:hover {
+  box-shadow: inset 0 0 0 9999px rgba(27,58,107,0.07) !important;
+}
+[data-theme="mint-teal"] .hover\:brightness-110:hover {
+  box-shadow: inset 0 0 0 9999px rgba(13,148,136,0.10) !important;
 }
