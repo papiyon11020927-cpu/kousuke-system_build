@@ -257,29 +257,30 @@ body  { margin: 0; font-family: 'Noto Sans JP', sans-serif; }
 }
 
 /* ════════════════════════════════════════════════
-   ホバー背景（テーマ別・パイプラインカード用）
-   ライトテーマではアクセント色を薄く乗せた明るい色に
+   パイプラインカード hover
+   JS（onMouseEnter/Leave）で pl-hovered クラスを付与
+   → CSS :hover 疑似クラスを使わないため確実に動作
    ════════════════════════════════════════════════ */
 
-/* ── パイプラインカード hover: data-status 属性で確実に上書き ── */
-/* navy-white: アクセントネイビーを薄く加えた色 */
-[data-theme="navy-white"] .pl-card[data-status="lead"]:hover         { background-color: #E4E9F5 !important; }
-[data-theme="navy-white"] .pl-card[data-status="estimate"]:hover     { background-color: #FFF3C4 !important; }
-[data-theme="navy-white"] .pl-card[data-status="contract"]:hover     { background-color: #DCEEFF !important; }
-[data-theme="navy-white"] .pl-card[data-status="construction"]:hover { background-color: #D6F5E0 !important; }
-[data-theme="navy-white"] .pl-card[data-status="completed"]:hover    { background-color: #D6EEFF !important; }
-[data-theme="navy-white"] .pl-card[data-status="settlement"]:hover   { background-color: #EFE5FF !important; }
-[data-theme="navy-white"] .pl-card[data-status="closed"]:hover       { background-color: #D6FAF3 !important; }
-[data-theme="navy-white"] .pl-card[data-status="lost"]:hover         { background-color: #FFE8E8 !important; }
+/* ダークテーマ（デフォルト navy-gold）は brightness で少し明るく */
+.pl-card.pl-hovered { filter: brightness(1.1); }
 
-/* mint-teal: ティールグリーンを薄く加えた色 */
-[data-theme="mint-teal"] .pl-card[data-status="lead"]:hover         { background-color: #C8EDE7 !important; }
-[data-theme="mint-teal"] .pl-card[data-status="estimate"]:hover     { background-color: #C8EDE7 !important; }
-[data-theme="mint-teal"] .pl-card[data-status="contract"]:hover     { background-color: #C4EEF0 !important; }
-[data-theme="mint-teal"] .pl-card[data-status="construction"]:hover { background-color: #BDEAE3 !important; }
-[data-theme="mint-teal"] .pl-card[data-status="completed"]:hover    { background-color: #C4EEF0 !important; }
-[data-theme="mint-teal"] .pl-card[data-status="settlement"]:hover   { background-color: #C8EDE7 !important; }
-[data-theme="mint-teal"] .pl-card[data-status="closed"]:hover       { background-color: #BDEAE3 !important; }
-[data-theme="mint-teal"] .pl-card[data-status="lost"]:hover         { background-color: #C8EDE7 !important; }
+/* navy-white: ネイビーを薄く混ぜた明るい色 */
+[data-theme="navy-white"] .pl-hovered[data-status="lead"]         { background-color: #E4E9F5 !important; filter: none !important; }
+[data-theme="navy-white"] .pl-hovered[data-status="estimate"]     { background-color: #FFF3C4 !important; filter: none !important; }
+[data-theme="navy-white"] .pl-hovered[data-status="contract"]     { background-color: #DCEEFF !important; filter: none !important; }
+[data-theme="navy-white"] .pl-hovered[data-status="construction"] { background-color: #D6F5E0 !important; filter: none !important; }
+[data-theme="navy-white"] .pl-hovered[data-status="completed"]    { background-color: #D6EEFF !important; filter: none !important; }
+[data-theme="navy-white"] .pl-hovered[data-status="settlement"]   { background-color: #EFE5FF !important; filter: none !important; }
+[data-theme="navy-white"] .pl-hovered[data-status="closed"]       { background-color: #D6FAF3 !important; filter: none !important; }
+[data-theme="navy-white"] .pl-hovered[data-status="lost"]         { background-color: #FFE8E8 !important; filter: none !important; }
 
-/* 旧セレクタ（エスケープhex）は削除 → data-status に統一 */
+/* mint-teal: ティールグリーンを薄く混ぜた明るい色 */
+[data-theme="mint-teal"] .pl-hovered[data-status="lead"]         { background-color: #C8EDE7 !important; filter: none !important; }
+[data-theme="mint-teal"] .pl-hovered[data-status="estimate"]     { background-color: #C8EDE7 !important; filter: none !important; }
+[data-theme="mint-teal"] .pl-hovered[data-status="contract"]     { background-color: #C4EEF0 !important; filter: none !important; }
+[data-theme="mint-teal"] .pl-hovered[data-status="construction"] { background-color: #BDEAE3 !important; filter: none !important; }
+[data-theme="mint-teal"] .pl-hovered[data-status="completed"]    { background-color: #C4EEF0 !important; filter: none !important; }
+[data-theme="mint-teal"] .pl-hovered[data-status="settlement"]   { background-color: #C8EDE7 !important; filter: none !important; }
+[data-theme="mint-teal"] .pl-hovered[data-status="closed"]       { background-color: #BDEAE3 !important; filter: none !important; }
+[data-theme="mint-teal"] .pl-hovered[data-status="lost"]         { background-color: #C8EDE7 !important; filter: none !important; }

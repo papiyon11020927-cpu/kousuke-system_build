@@ -177,6 +177,7 @@ const KanbanCard = memo(function KanbanCard({
   isDragging:     boolean;
 }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [hovered, setHovered]   = useState(false);
   const cfg  = STATUS_CFG[project.status];
   const next = NEXT_STATUS[project.status];
 
@@ -187,12 +188,15 @@ const KanbanCard = memo(function KanbanCard({
         e.dataTransfer.setData('projectId', project.projectId);
         e.dataTransfer.effectAllowed = 'move';
       }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onClick={() => onCardClick(project.projectId)}
       data-status={project.status}
       className={`
         relative rounded-lg border ${cfg.cardCls}
         p-3 cursor-pointer select-none pl-card
-        hover:brightness-110 transition-colors
+        ${hovered ? 'pl-hovered' : ''}
+        transition-colors
         ${isDragging ? 'opacity-30 scale-95' : ''}
       `}
     >
