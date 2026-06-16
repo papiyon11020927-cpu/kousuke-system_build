@@ -7,7 +7,8 @@ import {
   LucideChevronLeft, LucideMenu, LucidePalette, LucideUserCircle,
   LucidePencil, LucideShield,
 } from 'lucide-react';
-import type { UserRole, ColorTheme, MasterSubTab, AppUser } from '@/types';
+import type { UserRole, ColorTheme, MasterSubTab } from '@/types';
+import type { AuthUser } from '@/hooks/useAuth';
 
 // ─── 型 ─────────────────────────────────────────────────────────
 type ActiveTab =
@@ -23,7 +24,7 @@ export interface SidebarProps {
   viewingAsStaff:         boolean;
   isManagerLike:          boolean;
   currentRole:            UserRole;
-  user:                   AppUser;
+  user:                   AuthUser;
   theme:                  ColorTheme;
   onThemeChange:          (t: ColorTheme) => void;
   onLogout:               () => void;
@@ -290,7 +291,7 @@ export default function Sidebar({
                 </div>
                 <div className="min-w-0">
                   <p className="text-[11px] font-medium text-white truncate">{user.displayName}</p>
-                  <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
+                  <p className="text-[10px] text-gray-400 truncate">{user.email ?? ''}</p>
                 </div>
               </div>
               <span className={`mt-1.5 inline-block text-[9px] font-semibold px-1.5 py-0.5 rounded ${ROLE_BADGE[currentRole]}`}>
@@ -474,7 +475,7 @@ interface DrawerNavProps {
   viewingAsStaff: boolean;
   isManagerLike: boolean;
   currentRole: UserRole;
-  user: AppUser;
+  user: AuthUser;
   theme: ColorTheme;
   onThemeChange: (t: ColorTheme) => void;
   onLogout: () => void;
