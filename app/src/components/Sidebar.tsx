@@ -12,7 +12,7 @@ import type { AuthUser } from '@/hooks/useAuth';
 
 // ─── 型 ─────────────────────────────────────────────────────────
 type ActiveTab =
-  | 'dashboard' | 'manager' | 'calendar' | 'database'
+  | 'dashboard' | 'calendar' | 'database'
   | 'pipeline'  | 'workspace' | 'report' | 'goals'
   | 'daily_report' | 'masters';
 
@@ -170,7 +170,7 @@ export default function Sidebar({
 
         {/* ── メイン ── */}
         <SectionLabel label="メイン" collapsed={collapsed} />
-        <NavItem icon={<LucideTrendingUp   size={15} />} label="営業 TOP"       id="dashboard"    activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
+        <NavItem icon={<LucideTrendingUp   size={15} />} label="ダッシュボード" id="dashboard"    activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
         <NavItem icon={<LucideMic          size={15} />} label="現場報告"        id="report"       activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
         <NavItem icon={<LucideLayoutDashboard size={15} />} label="パイプライン" id="pipeline"     activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
         <NavItem icon={<LucideLayers       size={15} />} label="案件ワークスペース" id="workspace" activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
@@ -187,7 +187,6 @@ export default function Sidebar({
         {/* ── 管理者専用 ── */}
         {isManagerLike && !viewingAsStaff && (<>
           <SectionLabel label="管理" collapsed={collapsed} />
-          <NavItem icon={<LucideUsers    size={15} />} label="リソース管理"   id="manager"      activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
           <NavItem icon={<LucideCalendar size={15} />} label="全員カレンダー" id="calendar"     activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
           <NavItem icon={<LucideFileText size={15} />} label="日報"           id="daily_report" activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
         </>)}
@@ -504,7 +503,7 @@ function DrawerNav({
     <div className="flex flex-col h-full overflow-hidden">
       <nav className="flex-1 overflow-y-auto py-1">
         <SectionLabel label="メイン" collapsed={false} />
-        <NavItem icon={<LucideTrendingUp   size={15} />} label="営業 TOP"       id="dashboard"    activeTab={activeTab} collapsed={false} onClick={onTabChange} />
+        <NavItem icon={<LucideTrendingUp   size={15} />} label="ダッシュボード" id="dashboard"    activeTab={activeTab} collapsed={false} onClick={onTabChange} />
         <NavItem icon={<LucideMic          size={15} />} label="現場報告"        id="report"       activeTab={activeTab} collapsed={false} onClick={onTabChange} />
         <NavItem icon={<LucideLayoutDashboard size={15} />} label="パイプライン" id="pipeline"     activeTab={activeTab} collapsed={false} onClick={onTabChange} />
         <NavItem icon={<LucideLayers       size={15} />} label="案件ワークスペース" id="workspace" activeTab={activeTab} collapsed={false} onClick={onTabChange} />
@@ -519,7 +518,6 @@ function DrawerNav({
 
         {isManagerLike && !viewingAsStaff && (<>
           <SectionLabel label="管理" collapsed={false} />
-          <NavItem icon={<LucideUsers    size={15} />} label="リソース管理"   id="manager"      activeTab={activeTab} collapsed={false} onClick={onTabChange} />
           <NavItem icon={<LucideCalendar size={15} />} label="全員カレンダー" id="calendar"     activeTab={activeTab} collapsed={false} onClick={onTabChange} />
           <NavItem icon={<LucideFileText size={15} />} label="日報"           id="daily_report" activeTab={activeTab} collapsed={false} onClick={onTabChange} />
         </>)}

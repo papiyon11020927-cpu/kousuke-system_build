@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import type {
   Customer, Project, InOutLog, ProjectStatus, UserRole,
-  Estimate, Contract, EstimateTemplate,
+  Estimate, Contract, EstimateTemplate, Schedule,
   Vendor, VendorQuoteRequest,
 } from '@/types';
 import type { WorkspaceSection } from '@/types';
@@ -42,6 +42,7 @@ interface Props {
   projects:             Project[];
   customers:            Customer[];
   logs:                 InOutLog[];
+  schedules?:           Schedule[];
   estimates:            Estimate[];
   contracts:            Contract[];
   estimateTemplates:    EstimateTemplate[];
@@ -70,7 +71,7 @@ interface Props {
 // WorkspacePage
 // ─────────────────────────────────────────────────────────────
 export default function WorkspacePage({
-  projects, customers, logs, estimates, contracts, estimateTemplates,
+  projects, customers, logs, schedules = [], estimates, contracts, estimateTemplates,
   vendors = [], vendorQuoteRequests = [],
   staffList, currentRole, currentUserName, currentUserId,
   onShowToast,
@@ -321,6 +322,7 @@ export default function WorkspacePage({
       allEstimates={estimates}
       contracts={contracts.filter(c => c.projectId === selectedProject.projectId)}
       logs={logs}
+      schedules={schedules}
       estimateTemplates={estimateTemplates}
       vendors={vendors}
       vendorQuoteRequests={vendorQuoteRequests}

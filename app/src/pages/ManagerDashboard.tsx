@@ -7,7 +7,7 @@ import { saveComment } from '@/services/commentService';
 
 const STAFF_LIST = ['佐藤 営業マン', '山本 営業主任'];
 
-type ActiveTab = 'dashboard' | 'manager' | 'calendar' | 'database' | 'goals' | 'report' | 'masters';
+type ActiveTab = 'dashboard' | 'calendar' | 'database' | 'goals' | 'report' | 'masters';
 
 interface Props {
   currentUserId:       string | null;

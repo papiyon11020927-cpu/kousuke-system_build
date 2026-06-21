@@ -102,12 +102,20 @@ export const calcPriorityRecs = (
       }
     }
 
-    if (p.status === 'completed' && schedules.some((s) => s.projectId === p.projectId && s.isLtvTriggered)) {
-      list.push({
-        type: 'ltv_trigger', urgency: 'medium', project: p, customer: cust(p.customerId),
-        title: '【LTV掘り起こし】定期アフター点検',
-        desc:  `「${p.title}」の完工から1年。点検を口実に外壁塗装提案へ繋げます。`,
-      });
+    if (p.status === 'completed') {
+      const completedAt = new Date(p.lastActivityAt).getTime();
+      const daysSinceCompletion = Math.floor((today.getTime() - completedAt) / 86_400_000);
+      // 完工後すでにフォロー予定が組まれている場合は提案しない
+      const hasFollowUpScheduled = schedules.some(
+        (s) => s.projectId === p.projectId && new Date(s.startAt).getTime() > completedAt,
+      );
+      if (daysSinceCompletion >= 330 && !hasFollowUpScheduled) {
+        list.push({
+          type: 'ltv_trigger', urgency: 'medium', project: p, customer: cust(p.customerId),
+          title: '【LTV掘り起こし】定期アフター点検',
+          desc:  `「${p.title}」の完工から${Math.floor(daysSinceCompletion / 30)}ヶ月。点検を口実に外壁塗装提案へ繋げます。`,
+        });
+      }
     }
 
     if (p.status === 'lead' && !schedules.some((s) => s.projectId === p.projectId)) {

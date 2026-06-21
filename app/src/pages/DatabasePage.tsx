@@ -15,10 +15,11 @@ import type {
   Customer, Project, InOutLog, ProjectStatus, UserRole,
   Estimate, Contract, PaymentTerm, ContractApprovalStatus, EstimateTemplate,
   Vendor, VendorCostEntry, VendorQuoteRequest, VendorQuoteItem, ProjectAssignee,
-  WorkspaceSection,
+  WorkspaceSection, Schedule,
 } from '@/types';
 import { saveCustomer }  from '@/services/customerService';
 import { saveProject, updateProjectStatus, setLostReason, approveProjectCreation } from '@/services/projectService';
+import { saveSchedule } from '@/services/scheduleService';
 import { validateStatusTransition } from '@/utils/statusValidation';
 import { saveEstimate, submitForApproval, approveEstimate, rejectEstimate, revertEstimateToDraft, deleteEstimate } from '@/services/estimateService';
 import { createVendorQuoteRequest, updateVendorQuoteStatus, deleteVendorQuoteRequest,
@@ -40,6 +41,7 @@ interface Props {
   customers:              Customer[];
   projects:               Project[];
   logs:                   InOutLog[];
+  schedules?:             Schedule[];
   estimates:              Estimate[];
   contracts:              Contract[];
   estimateTemplates:      EstimateTemplate[];
@@ -3815,10 +3817,144 @@ const WS_STEPS: Array<{ id: WorkspaceSection; label: string; shortLabel: string 
   { id: 'settlement', label: '精算',  shortLabel: '精算' },
 ];
 
+// ─────────────────────────────────────────────────────────────
+// 今後のスケジュール（案件詳細 概要タブ）
+// ─────────────────────────────────────────────────────────────
+
+function UpcomingScheduleSection({ project, customer, schedules, staffList, onShowToast }: {
+  project: Project; customer: Customer; schedules: Schedule[];
+  staffList: string[]; onShowToast: (msg: string) => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [saving,   setSaving]   = useState(false);
+
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const [form, setForm] = useState({
+    title: '', date: todayStr, startTime: '09:00', endTime: '10:00',
+    assignees: staffList.length > 0 ? [staffList[0]] : [],
+  });
+
+  const upcoming = useMemo(() =>
+    schedules
+      .filter(s => s.projectId === project.projectId && s.startAt >= new Date().toISOString())
+      .sort((a, b) => a.startAt.localeCompare(b.startAt)),
+  [schedules, project.projectId]);
+
+  const toggleAssignee = (name: string) => setForm(p => ({
+    ...p, assignees: p.assignees.includes(name) ? p.assignees.filter(a => a !== name) : [...p.assignees, name],
+  }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim()) return;
+    setSaving(true);
+    try {
+      await saveSchedule({
+        scheduleId:     'SCH-' + Date.now(),
+        title:          form.title,
+        projectId:      project.projectId,
+        customerId:     customer.customerId,
+        startAt:        `${form.date}T${form.startTime}:00`,
+        endAt:          `${form.date}T${form.endTime}:00`,
+        assignees:      form.assignees,
+        createdAt:      new Date().toISOString(),
+      });
+      onShowToast('スケジュールを登録しました');
+      setForm({ title: '', date: todayStr, startTime: '09:00', endTime: '10:00', assignees: staffList.length > 0 ? [staffList[0]] : [] });
+      setShowForm(false);
+    } catch {
+      onShowToast('登録に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-[#111A35] border border-gray-800 rounded-xl overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-gray-800 flex items-center justify-between">
+        <span className="text-xs font-bold text-gray-400 flex items-center gap-1.5">
+          <LucideCalendarDays size={12} /> 今後のスケジュール
+        </span>
+        <button onClick={() => setShowForm(v => !v)}
+          className="text-[11px] text-[#E6C687] hover:text-white flex items-center gap-1 transition">
+          <LucidePlus size={11} /> 予定を追加
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="p-3 border-b border-gray-800 space-y-2 bg-[#0B132B]/60">
+          <input
+            type="text" required value={form.title} autoFocus
+            onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+            placeholder="予定タイトル *"
+            className="w-full bg-[#0B132B] border border-gray-700 text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#C5A059]"
+          />
+          <div className="grid grid-cols-3 gap-1.5">
+            <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
+              className="bg-[#0B132B] border border-gray-700 text-white text-[11px] rounded px-1.5 py-1.5 focus:outline-none focus:border-[#C5A059]" />
+            <input type="time" value={form.startTime} onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))}
+              className="bg-[#0B132B] border border-gray-700 text-white text-[11px] rounded px-1.5 py-1.5 focus:outline-none focus:border-[#C5A059]" />
+            <input type="time" value={form.endTime} onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))}
+              className="bg-[#0B132B] border border-gray-700 text-white text-[11px] rounded px-1.5 py-1.5 focus:outline-none focus:border-[#C5A059]" />
+          </div>
+          {staffList.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {staffList.map(name => (
+                <button key={name} type="button" onClick={() => toggleAssignee(name)}
+                  className={`text-[11px] px-2 py-1 rounded border transition ${
+                    form.assignees.includes(name)
+                      ? 'bg-[#C5A059]/20 border-[#C5A059]/60 text-[#E6C687]'
+                      : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                  }`}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2 pt-0.5">
+            <button type="button" onClick={() => setShowForm(false)}
+              className="flex-1 border border-gray-700 text-gray-400 text-xs py-1.5 rounded-lg hover:border-gray-500 hover:text-white transition">
+              キャンセル
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 bg-[#C5A059] hover:bg-[#E6C687] text-[#0A0F1D] text-xs font-bold py-1.5 rounded-lg disabled:opacity-50 transition">
+              {saving ? '保存中…' : '登録する'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {upcoming.length === 0 ? (
+        <div className="px-4 py-6 text-center text-xs text-gray-600">予定はありません</div>
+      ) : (
+        <div className="divide-y divide-gray-800/60 max-h-56 overflow-y-auto">
+          {upcoming.map(s => {
+            const dateStr = s.startAt.split('T')[0];
+            const timeStr = s.startAt.split('T')[1]?.substring(0, 5) ?? '';
+            return (
+              <div key={s.scheduleId} className="px-4 py-2.5 flex items-start gap-2.5">
+                <span className="shrink-0 mt-0.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#C5A059]/15 text-[#C5A059] border border-[#C5A059]/30">
+                  {dateStr.slice(5)} {timeStr}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-semibold text-white truncate">{s.title}</div>
+                  {s.assignees.length > 0 && (
+                    <div className="text-[10px] text-gray-600">{s.assignees.join('、')}</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProjectWorkspaceModal({
   project, customer,
   estimates, allEstimates,
-  contracts, logs,
+  contracts, logs, schedules,
   estimateTemplates, vendors, vendorQuoteRequests,
   staffList, currentRole, currentUserName, currentUserId,
   onClose, onShowToast,
@@ -3832,6 +3968,7 @@ export function ProjectWorkspaceModal({
   allEstimates:         Estimate[];
   contracts:            Contract[];
   logs:                 InOutLog[];
+  schedules?:           Schedule[];
   estimateTemplates:    EstimateTemplate[];
   vendors:              Vendor[];
   vendorQuoteRequests:  VendorQuoteRequest[];
@@ -4162,6 +4299,14 @@ export function ProjectWorkspaceModal({
               ))}
             </div>
 
+            {/* 今後のスケジュール */}
+            <UpcomingScheduleSection
+              project={project} customer={customer}
+              schedules={schedules ?? []}
+              staffList={staffList}
+              onShowToast={onShowToast}
+            />
+
             {/* 活動履歴（全件）*/}
             <div className="bg-[#111A35] border border-gray-800 rounded-xl overflow-hidden">
               <div className="px-4 py-2.5 border-b border-gray-800 flex items-center justify-between">
@@ -4348,7 +4493,7 @@ const ProjectCard = memo(function ProjectCard({
 // メインコンポーネント
 // ─────────────────────────────────────────────────────────────
 
-function DatabasePage({ customers, projects, logs, estimates, contracts, estimateTemplates, vendors = [], vendorQuoteRequests = [], staffList, currentRole, currentUserName, currentUserId, onShowToast, initialSearch = '', onOpenWorkspace }: Props) {
+function DatabasePage({ customers, projects, logs, schedules = [], estimates, contracts, estimateTemplates, vendors = [], vendorQuoteRequests = [], staffList, currentRole, currentUserName, currentUserId, onShowToast, initialSearch = '', onOpenWorkspace }: Props) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [viewMode,         setViewMode]         = useState<ViewMode>('card');
   const [searchText,       setSearchText]       = useState(initialSearch);
@@ -4464,6 +4609,7 @@ function DatabasePage({ customers, projects, logs, estimates, contracts, estimat
           customer={selectedCustomer}
           projects={projects.filter(p => p.customerId === selectedCustomer.customerId)}
           logs={logs.filter(l => l.customerId === selectedCustomer.customerId)}
+          schedules={schedules.filter(s => s.customerId === selectedCustomer.customerId)}
           estimates={estimates.filter(e => e.customerId === selectedCustomer.customerId)}
           allEstimates={estimates}
           contracts={contracts.filter(c => c.customerId === selectedCustomer.customerId)}
@@ -4506,7 +4652,11 @@ const CustomerCardList = memo(function CustomerCardList({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {customers.map(cust => {
-        const custProjects = projects.filter(p => p.customerId === cust.customerId);
+        const custProjects = projects
+          .filter(p => p.customerId === cust.customerId)
+          .sort((a, b) => PRIORITY[a.status] - PRIORITY[b.status]);
+        const visibleProjects = custProjects.slice(0, 2);
+        const hiddenCount     = custProjects.length - visibleProjects.length;
         return (
           <div key={cust.customerId}
             className="bg-[#0B132B] border border-gray-800 rounded-lg p-4 space-y-3 hover:border-gray-700 transition-colors">
@@ -4526,18 +4676,25 @@ const CustomerCardList = memo(function CustomerCardList({
               <span className="text-[10px] text-gray-400 font-extrabold block">🔗 紐づく案件</span>
               {custProjects.length === 0 ? (
                 <p className="text-[11px] text-gray-500 italic">案件なし</p>
-              ) : custProjects.map(p => (
-                <div key={p.projectId} className="flex justify-between items-center text-xs bg-[#0A0F1D] p-2 rounded">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[9px] font-mono text-gray-500 block">{p.projectId}</span>
-                    <span className="font-bold text-gray-300 truncate block">{p.title}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 inline-block ${STATUS_COLOR[p.status]}`}>
-                      {STATUS_LABEL[p.status]}
-                    </span>
-                  </div>
-                  <span className="font-mono text-[#E6C687] shrink-0 ml-2">¥{(p.amount ?? 0).toLocaleString()}</span>
-                </div>
-              ))}
+              ) : (
+                <>
+                  {visibleProjects.map(p => (
+                    <div key={p.projectId} className="flex justify-between items-center text-xs bg-[#0A0F1D] p-2 rounded">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[9px] font-mono text-gray-500 block">{p.projectId}</span>
+                        <span className="font-bold text-gray-300 truncate block">{p.title}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 inline-block ${STATUS_COLOR[p.status]}`}>
+                          {STATUS_LABEL[p.status]}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[#E6C687] shrink-0 ml-2">¥{(p.amount ?? 0).toLocaleString()}</span>
+                    </div>
+                  ))}
+                  {hiddenCount > 0 && (
+                    <p className="text-[10px] text-gray-500 text-center pt-0.5">他 {hiddenCount} 件（カードを開くと確認できます）</p>
+                  )}
+                </>
+              )}
             </div>
             <button onClick={() => onSelect(cust)}
               className="w-full text-center bg-gray-800 text-xs text-gray-300 py-1.5 rounded hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5">
@@ -4602,6 +4759,7 @@ interface ModalProps {
   customer:             Customer;
   projects:             Project[];
   logs:                 InOutLog[];
+  schedules?:           Schedule[];
   estimates:            Estimate[];       // この顧客の見積書
   allEstimates:         Estimate[];       // 全件（比較用）
   contracts:            Contract[];       // この顧客の契約書
@@ -4620,7 +4778,7 @@ interface ModalProps {
 }
 
 function CustomerModal({
-  customer, projects, logs,
+  customer, projects, logs, schedules = [],
   estimates, allEstimates, contracts,
   estimateTemplates, vendors = [], vendorQuoteRequests = [],
   staffList, currentRole, isManagerLike, currentUserName, currentUserId,
@@ -4637,6 +4795,14 @@ function CustomerModal({
   const sortedLogs = useMemo(() =>
     [...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
     [logs]
+  );
+
+  // 今後の予定（この顧客の全案件分、昇順）
+  const upcomingSchedules = useMemo(() =>
+    [...schedules]
+      .filter(s => s.startAt >= new Date().toISOString())
+      .sort((a, b) => a.startAt.localeCompare(b.startAt)),
+    [schedules]
   );
 
   // ── LTV計算 ─────────────────────────────────────────────────
@@ -4703,6 +4869,9 @@ function CustomerModal({
           <button onClick={() => setActiveTab('logs')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold transition-colors ${activeTab === 'logs' ? 'text-[#E6C687] border-b-2 border-[#C5A059] bg-[#C5A059]/5' : 'text-gray-400 hover:text-white'}`}>
             <LucideClipboardList size={12} /> 訪問ログ ({logs.length})
+            {upcomingSchedules.length > 0 && (
+              <span className="ml-0.5 h-4 min-w-4 px-1 rounded-full bg-blue-500 text-[9px] text-white flex items-center justify-center">{upcomingSchedules.length}</span>
+            )}
           </button>
         </div>
 
@@ -4853,7 +5022,37 @@ function CustomerModal({
 
           {/* ── 訪問ログタブ ── */}
           {activeTab === 'logs' && (
-            <div className="relative border-l border-gray-700 pl-4 ml-2 space-y-4">
+            <div className="space-y-4">
+
+              {/* 今後の予定 */}
+              {upcomingSchedules.length > 0 && (
+                <div className="bg-[#0B132B] border border-[#C5A059]/30 rounded-xl overflow-hidden">
+                  <div className="px-3 py-2 border-b border-[#C5A059]/20 flex items-center gap-1.5">
+                    <LucideCalendarDays size={12} className="text-[#C5A059]" />
+                    <span className="text-xs font-bold text-[#E6C687]">今後の予定</span>
+                  </div>
+                  <div className="divide-y divide-gray-800/60">
+                    {upcomingSchedules.map(s => {
+                      const proj = projects.find(p => p.projectId === s.projectId);
+                      const dateStr = s.startAt.split('T')[0];
+                      const timeStr = s.startAt.split('T')[1]?.substring(0, 5) ?? '';
+                      return (
+                        <div key={s.scheduleId} className="px-3 py-2 flex items-start gap-2.5">
+                          <span className="shrink-0 mt-0.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#C5A059]/15 text-[#C5A059] border border-[#C5A059]/30">
+                            {dateStr} {timeStr}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-semibold text-white truncate">{s.title}</div>
+                            {proj && <div className="text-[10px] text-gray-600 truncate">{proj.title}</div>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="relative border-l border-gray-700 pl-4 ml-2 space-y-4">
               {sortedLogs.length === 0 ? (
                 <p className="text-xs text-gray-500 italic">まだ訪問履歴はありません。</p>
               ) : sortedLogs.map(log => (
@@ -4915,6 +5114,7 @@ function CustomerModal({
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )}
         </div>

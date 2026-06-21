@@ -189,7 +189,6 @@ function PostSaveScheduleAdd({
         startAt,
         endAt,
         assignees:      [selectedStaff].filter(Boolean),
-        isLtvTriggered: false,
         createdAt:      new Date().toISOString(),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };

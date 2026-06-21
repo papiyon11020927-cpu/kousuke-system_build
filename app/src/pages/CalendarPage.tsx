@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { Customer, Project, Schedule, UserRole } from '@/types';
 import { saveSchedule, deleteSchedule } from '@/services/scheduleService';
+import ProjectPicker from '@/components/ProjectPicker';
 
 // ─────────────────────────────────────────────────────────────
 // 型・定数
@@ -51,7 +52,7 @@ function evStyle(s: Schedule) {
 }
 
 function evColor(s: Schedule) {
-  if (s.isLtvTriggered)               return 'bg-purple-950 border-purple-500 text-purple-200';
+  if (/点検/.test(s.title))            return 'bg-purple-950 border-purple-500 text-purple-200';
   if (/工事|施工/.test(s.title))       return 'bg-emerald-950 border-emerald-500 text-emerald-200';
   return 'bg-blue-950 border-blue-500 text-blue-200';
 }
@@ -60,11 +61,15 @@ function evColor(s: Schedule) {
 // 予定作成・編集ダイアログ
 // ─────────────────────────────────────────────────────────────
 
-interface FormInit  { date: string; startTime: string; endTime: string; }
+interface FormInit  {
+  date: string; startTime: string; endTime: string;
+  /** 案件詳細からの遷移時: 自動選択する案件・顧客（変更不可） */
+  presetProjectId?: string; presetCustomerId?: string;
+}
 interface FormState {
   title: string; date: string; startTime: string; endTime: string;
   assignees: string[]; customerId: string; projectId: string;
-  notes: string; isLtvTriggered: boolean;
+  notes: string;
 }
 
 function ScheduleDialog({
@@ -78,6 +83,8 @@ function ScheduleDialog({
   onSave: (f: FormState, existingId?: string) => void;
   onClose: () => void;
 }) {
+  const lockProject = !existing && !!init.presetProjectId;
+
   const [f, setF] = useState<FormState>(() => {
     if (existing) {
       return {
@@ -89,17 +96,17 @@ function ScheduleDialog({
         customerId:     existing.customerId ?? '',
         projectId:      existing.projectId  ?? '',
         notes:          existing.notes      ?? '',
-        isLtvTriggered: existing.isLtvTriggered,
       };
     }
     return {
       title: '', date: init.date, startTime: init.startTime, endTime: init.endTime,
-      assignees: staffList.length > 0 ? [staffList[0]] : [], customerId: '', projectId: '', notes: '', isLtvTriggered: false,
+      assignees: staffList.length > 0 ? [staffList[0]] : [],
+      customerId: init.presetCustomerId ?? '', projectId: init.presetProjectId ?? '',
+      notes: '',
     };
   });
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF(p => ({ ...p, [k]: v }));
-  const custProjects = projects.filter(p => p.customerId === f.customerId);
 
   const toggleAssignee = (name: string) => setF(p => ({
     ...p, assignees: p.assignees.includes(name) ? p.assignees.filter(a => a !== name) : [...p.assignees, name],
@@ -151,31 +158,18 @@ function ScheduleDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] text-gray-400 block mb-0.5">顧客</label>
-              <select value={f.customerId}
-                onChange={e => { set('customerId', e.target.value); set('projectId', ''); }}
-                className="w-full bg-[#0B132B] border border-gray-700 text-white text-xs rounded px-2 py-1.5 focus:outline-none focus:border-[#C5A059]">
-                <option value="">選択なし</option>
-                {customers.map(c => <option key={c.customerId} value={c.customerId}>{c.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-400 block mb-0.5">案件</label>
-              <select value={f.projectId} onChange={e => set('projectId', e.target.value)}
-                disabled={!f.customerId}
-                className="w-full bg-[#0B132B] border border-gray-700 text-white text-xs rounded px-2 py-1.5 focus:outline-none focus:border-[#C5A059] disabled:opacity-40">
-                <option value="">選択なし</option>
-                {custProjects.map(p => <option key={p.projectId} value={p.projectId}>{p.title}</option>)}
-              </select>
-            </div>
+          <div>
+            <label className="text-[10px] text-gray-400 block mb-0.5">案件（任意）</label>
+            <ProjectPicker
+              projects={projects} customers={customers}
+              projectId={f.projectId}
+              locked={lockProject}
+              onSelect={p => {
+                set('projectId', p?.projectId ?? '');
+                set('customerId', p?.customerId ?? '');
+              }}
+            />
           </div>
-
-          <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
-            <input type="checkbox" checked={f.isLtvTriggered} onChange={e => set('isLtvTriggered', e.target.checked)} className="accent-[#C5A059]" />
-            LTV点検スケジュール（アフターフォロー）
-          </label>
 
           <textarea value={f.notes} onChange={e => set('notes', e.target.value)}
             placeholder="メモ（任意）" rows={2}
@@ -715,7 +709,6 @@ export default function CalendarPage({
         startAt:        `${f.date}T${f.startTime}:00`,
         endAt:          `${f.date}T${f.endTime}:00`,
         assignees:      f.assignees,
-        isLtvTriggered: f.isLtvTriggered,
         notes:          f.notes,
         createdAt:      base?.createdAt ?? new Date().toISOString(),
       });

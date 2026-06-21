@@ -8,7 +8,7 @@ import {
 import type { Customer, Project, Schedule, AppNotification, Contract, VendorQuoteRequest, DashboardTodo } from '@/types';
 import { calcKpi, calcPriorityRecs, calcDashboardTodos, type PriorityRec } from '@/services/kpiService';
 
-type ActiveTab = 'dashboard' | 'manager' | 'calendar' | 'database' | 'goals' | 'report' | 'masters';
+type ActiveTab = 'dashboard' | 'calendar' | 'database' | 'goals' | 'report' | 'masters';
 
 interface Props {
   customers:           Customer[];
@@ -23,9 +23,11 @@ interface Props {
   onNotificationRead:      (id: string) => void;
   onNotificationClick:     (n: AppNotification) => void;
   onTabChange:             (tab: ActiveTab) => void;
+  /** true の場合、通知・TODO・未入金などのバナーを表示しない（管理者ダッシュボードに統合表示する際、上位の ManagerDashboard 側のバナーと重複させないため） */
+  hideBanners?:            boolean;
 }
 
-export default function StaffDashboard({ customers, projects, schedules, contracts, vendorQuoteRequests, selectedStaff, onShowToast, notifications, currentUserId, onNotificationRead, onNotificationClick, onTabChange }: Props) {
+export default function StaffDashboard({ customers, projects, schedules, contracts, vendorQuoteRequests, selectedStaff, onShowToast, notifications, currentUserId, onNotificationRead, onNotificationClick, onTabChange, hideBanners = false }: Props) {
   const [showAllNotifs, setShowAllNotifs] = useState(false);
 
   const kpi = useMemo(
@@ -75,17 +77,17 @@ export default function StaffDashboard({ customers, projects, schedules, contrac
     <div className="space-y-6">
 
       {/* ─── 未入金アラート ─── */}
-      {overduePayments.length > 0 && (
+      {!hideBanners && overduePayments.length > 0 && (
         <OverduePaymentsBanner items={overduePayments} onTabChange={onTabChange} />
       )}
 
       {/* ─── TODO バナー ─── */}
-      {todos.length > 0 && (
+      {!hideBanners && todos.length > 0 && (
         <TodoBanner todos={todos} onTabChange={onTabChange} />
       )}
 
       {/* ─── 通知バナー（未読のみ表示・既読で非表示） ─── */}
-      {unread.length > 0 && (
+      {!hideBanners && unread.length > 0 && (
         <div className="bg-[#111A35] border border-[#C5A059]/20 rounded-xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800">
             <div className="flex items-center gap-2 text-xs font-bold text-[#E6C687]">

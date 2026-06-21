@@ -65,7 +65,6 @@ export interface Schedule {
   startAt: string; // ISO 8601
   endAt: string;
   assignees: string[];
-  isLtvTriggered: boolean;
   notes?: string;
   createdAt?: string;
 }

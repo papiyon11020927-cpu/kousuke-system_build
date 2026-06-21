@@ -46,7 +46,7 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 import {
   LucideActivity,
   LucideBell, LucideX, LucideCheckCheck, LucideMail, LucideMailOpen,
-  LucideHistory,
+  LucideHistory, LucideLayoutDashboard,
 } from 'lucide-react';
 import type { UserRole, AppNotification, ColorTheme, MasterSubTab } from '@/types';
 import Sidebar, { HamburgerButton } from '@/components/Sidebar';
@@ -86,7 +86,7 @@ import VendorQuotePage  from '@/pages/VendorQuotePage';
 import PipelinePage     from '@/pages/PipelinePage';
 import type { WorkspaceSection } from '@/types';
 
-type ActiveTab = 'dashboard' | 'manager' | 'calendar' | 'database' | 'pipeline' | 'workspace' | 'report' | 'goals' | 'daily_report' | 'masters';
+type ActiveTab = 'dashboard' | 'calendar' | 'database' | 'pipeline' | 'workspace' | 'report' | 'goals' | 'daily_report' | 'masters';
 
 export default function App() {
   const { user, loading: authLoading } = useAuth();
@@ -206,18 +206,13 @@ export default function App() {
 
   // ロール変更時にタブをリセット
   useEffect(() => {
-    if (currentRole === 'manager' || currentRole === 'admin') {
-      setActiveTab('manager');
-    } else {
-      setActiveTab('dashboard');
-    }
+    setActiveTab('dashboard');
   }, [currentRole]);
 
   // 管理者が選択ユーザーを切り替えたときタブをリセット
   useEffect(() => {
     if (!isManagerLike) return;
-    const role = appUsers.find(u => u.displayName === selectedStaff)?.role ?? currentRole;
-    setActiveTab(role === 'staff' ? 'dashboard' : 'manager');
+    setActiveTab('dashboard');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStaff]);
 
@@ -437,27 +432,48 @@ export default function App() {
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 min-w-0">
       <AppErrorBoundary>
         {activeTab === 'dashboard' && (
-          <StaffDashboard
-            customers={customers} projects={projects} schedules={schedules}
-            contracts={contracts} vendorQuoteRequests={vendorQuoteRequests}
-            selectedStaff={selectedStaff} onShowToast={showToast}
-            notifications={notifications} currentUserId={uid ?? null}
-            onNotificationRead={(id) => uid && markNotificationRead(id, uid)}
-            onNotificationClick={handleNotificationClick}
-            onTabChange={setActiveTab}
-          />
-        )}
-        {activeTab === 'manager' && isManagerLike && !viewingAsStaff && (
-          <ManagerDashboard
-            currentUserId={uid}
-            customers={customers} projects={projects} schedules={schedules}
-            contracts={contracts} vendorQuoteRequests={vendorQuoteRequests}
-            comments={comments} onShowToast={showToast}
-            notifications={notifications}
-            onNotificationRead={(id) => uid && markNotificationRead(id, uid)}
-            onNotificationClick={handleNotificationClick}
-            onTabChange={setActiveTab}
-          />
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                <LucideLayoutDashboard size={16} className="text-[#C5A059]" />
+                ダッシュボード
+              </h2>
+              <p className="text-xs text-gray-400 mt-1">
+                {isManagerLike && !viewingAsStaff
+                  ? '全社の営業状況とリソース状況の一覧です'
+                  : `${selectedStaff} さんの本日の営業状況です`}
+              </p>
+            </div>
+
+            {isManagerLike && !viewingAsStaff && (
+              <ManagerDashboard
+                currentUserId={uid}
+                customers={customers} projects={projects} schedules={schedules}
+                contracts={contracts} vendorQuoteRequests={vendorQuoteRequests}
+                comments={comments} onShowToast={showToast}
+                notifications={notifications}
+                onNotificationRead={(id) => uid && markNotificationRead(id, uid)}
+                onNotificationClick={handleNotificationClick}
+                onTabChange={setActiveTab}
+              />
+            )}
+
+            {isManagerLike && !viewingAsStaff && (
+              <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest">
+                マイKPI（営業 TOP・{selectedStaff}）
+              </p>
+            )}
+            <StaffDashboard
+              customers={customers} projects={projects} schedules={schedules}
+              contracts={contracts} vendorQuoteRequests={vendorQuoteRequests}
+              selectedStaff={selectedStaff} onShowToast={showToast}
+              notifications={notifications} currentUserId={uid ?? null}
+              onNotificationRead={(id) => uid && markNotificationRead(id, uid)}
+              onNotificationClick={handleNotificationClick}
+              onTabChange={setActiveTab}
+              hideBanners={isManagerLike && !viewingAsStaff}
+            />
+          </div>
         )}
         {activeTab === 'calendar' && (
           <CalendarPage
@@ -489,6 +505,7 @@ export default function App() {
             projects={projects}
             customers={customers}
             logs={logs}
+            schedules={schedules}
             estimates={estimates}
             contracts={contracts}
             estimateTemplates={estimateTemplates}
@@ -507,7 +524,7 @@ export default function App() {
         )}
         {activeTab === 'database' && (
           <DatabasePage
-            customers={customers} projects={projects} logs={logs}
+            customers={customers} projects={projects} logs={logs} schedules={schedules}
             staffList={staffList} currentRole={currentRole} onShowToast={showToast}
             estimates={estimates} contracts={contracts}
             estimateTemplates={estimateTemplates}
