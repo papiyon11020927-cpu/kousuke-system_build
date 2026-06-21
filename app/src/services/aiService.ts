@@ -56,6 +56,45 @@ export const generateDailySummary = async (
   }
 };
 
+// ─── 管理者向け：全スタッフ統合サマリー生成 ──────────────────────
+// 既存の geminiDailySummary をそのまま再利用（バックエンド変更不要）。
+// staffName に「全社」を渡し、logText にスタッフ別の活動を見出し付きで連結する。
+export const generateTeamDailySummary = async (
+  logsByStaff: { staffName: string; logs: InOutLog[] }[],
+): Promise<string> => {
+  const withVisits = logsByStaff.filter(({ logs }) => logs.filter(l => l.type === 'out').length > 0);
+  if (!withVisits.length) return '本日はチーム全体で訪問記録がありません。';
+
+  const logText = withVisits
+    .map(({ staffName, logs }) => {
+      const outLogs = logs.filter(l => l.type === 'out');
+      const lines = outLogs.map((l, i) => {
+        const parts: string[] = [`訪問${i + 1}`];
+        if (l.structuredData?.customerIssue)  parts.push(`課題: ${l.structuredData.customerIssue}`);
+        if (l.structuredData?.keymanReaction) parts.push(`反応: ${l.structuredData.keymanReaction}`);
+        if (l.structuredData?.nextAction)     parts.push(`次回: ${l.structuredData.nextAction}`);
+        else if (l.voiceText)                 parts.push(l.voiceText.substring(0, 60));
+        return parts.join(' / ');
+      });
+      return `【${staffName}】(${outLogs.length}件)\n${lines.join('\n')}`;
+    })
+    .join('\n\n');
+
+  try {
+    const result = await dailySummaryFn({ staffName: '全社（管理者向け）', logText });
+    return result.data.summary || simulateTeamSummary(withVisits);
+  } catch (err) {
+    console.warn('[aiService] generateTeamDailySummary fallback to simulation:', err);
+    return simulateTeamSummary(withVisits);
+  }
+};
+
+const simulateTeamSummary = (withVisits: { staffName: string; logs: InOutLog[] }[]): string => {
+  const totalVisits = withVisits.reduce((s, { logs }) => s + logs.filter(l => l.type === 'out').length, 0);
+  const names = withVisits.map(v => v.staffName).join('、');
+  return `本日は${withVisits.length}名（${names}）が合計${totalVisits}件の訪問を実施。各担当とも商談を継続中で、重点フォロー先には個別の日報を確認してください。`;
+};
+
 // ─── フォールバック（Functionsが未デプロイ・オフライン時） ──────
 const simulateDailySummary = (staffName: string, outLogs: InOutLog[]): string => {
   const latest = outLogs[outLogs.length - 1];

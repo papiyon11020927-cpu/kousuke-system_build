@@ -5,7 +5,7 @@ import {
   LucideSettings, LucideClipboardList, LucideBuilding2,
   LucideLogOut, LucideChevronDown, LucideChevronRight,
   LucideChevronLeft, LucideMenu, LucidePalette, LucideUserCircle,
-  LucidePencil, LucideShield,
+  LucidePencil, LucideShield, LucideBarChart3,
 } from 'lucide-react';
 import type { UserRole, ColorTheme, MasterSubTab } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
@@ -14,7 +14,7 @@ import type { AuthUser } from '@/hooks/useAuth';
 type ActiveTab =
   | 'dashboard' | 'calendar' | 'database'
   | 'pipeline'  | 'workspace' | 'report' | 'goals'
-  | 'daily_report' | 'masters';
+  | 'daily_report' | 'analytics' | 'masters';
 
 export interface SidebarProps {
   activeTab:              ActiveTab;
@@ -175,20 +175,21 @@ export default function Sidebar({
         <NavItem icon={<LucideLayoutDashboard size={15} />} label="パイプライン" id="pipeline"     activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
         <NavItem icon={<LucideLayers       size={15} />} label="案件ワークスペース" id="workspace" activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
         <NavItem icon={<LucideUsers        size={15} />} label="顧客カルテ"      id="database"     activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
+        <NavItem icon={<LucideTarget       size={15} />} label="予算・目標管理"  id="goals"        activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
 
         {/* ── スタッフ専用 ── */}
         {viewingAsStaff && (<>
           <SectionLabel label="スタッフ" collapsed={collapsed} />
-          <NavItem icon={<LucideCalendar  size={15} />} label="カレンダー" id="calendar"     activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
+          <NavItem icon={<LucideCalendar  size={15} />} label="スケジュール" id="calendar"     activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
           <NavItem icon={<LucideFileText  size={15} />} label="日報"       id="daily_report" activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
-          <NavItem icon={<LucideTarget    size={15} />} label="目標管理"   id="goals"        activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
         </>)}
 
         {/* ── 管理者専用 ── */}
         {isManagerLike && !viewingAsStaff && (<>
           <SectionLabel label="管理" collapsed={collapsed} />
-          <NavItem icon={<LucideCalendar size={15} />} label="全員カレンダー" id="calendar"     activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
+          <NavItem icon={<LucideCalendar size={15} />} label="全員スケジュール" id="calendar"     activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
           <NavItem icon={<LucideFileText size={15} />} label="日報"           id="daily_report" activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
+          <NavItem icon={<LucideBarChart3 size={15} />} label="分析レポート"  id="analytics"    activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
         </>)}
 
         {/* ── マスタ管理（アコーディオン） ── */}
@@ -508,18 +509,19 @@ function DrawerNav({
         <NavItem icon={<LucideLayoutDashboard size={15} />} label="パイプライン" id="pipeline"     activeTab={activeTab} collapsed={false} onClick={onTabChange} />
         <NavItem icon={<LucideLayers       size={15} />} label="案件ワークスペース" id="workspace" activeTab={activeTab} collapsed={false} onClick={onTabChange} />
         <NavItem icon={<LucideUsers        size={15} />} label="顧客カルテ"      id="database"     activeTab={activeTab} collapsed={false} onClick={onTabChange} />
+        <NavItem icon={<LucideTarget       size={15} />} label="予算・目標管理"  id="goals"        activeTab={activeTab} collapsed={false} onClick={onTabChange} />
 
         {viewingAsStaff && (<>
           <SectionLabel label="スタッフ" collapsed={false} />
-          <NavItem icon={<LucideCalendar size={15} />} label="カレンダー" id="calendar"     activeTab={activeTab} collapsed={false} onClick={onTabChange} />
+          <NavItem icon={<LucideCalendar size={15} />} label="スケジュール" id="calendar"     activeTab={activeTab} collapsed={false} onClick={onTabChange} />
           <NavItem icon={<LucideFileText size={15} />} label="日報"       id="daily_report" activeTab={activeTab} collapsed={false} onClick={onTabChange} />
-          <NavItem icon={<LucideTarget   size={15} />} label="目標管理"   id="goals"        activeTab={activeTab} collapsed={false} onClick={onTabChange} />
         </>)}
 
         {isManagerLike && !viewingAsStaff && (<>
           <SectionLabel label="管理" collapsed={false} />
-          <NavItem icon={<LucideCalendar size={15} />} label="全員カレンダー" id="calendar"     activeTab={activeTab} collapsed={false} onClick={onTabChange} />
+          <NavItem icon={<LucideCalendar size={15} />} label="全員スケジュール" id="calendar"     activeTab={activeTab} collapsed={false} onClick={onTabChange} />
           <NavItem icon={<LucideFileText size={15} />} label="日報"           id="daily_report" activeTab={activeTab} collapsed={false} onClick={onTabChange} />
+          <NavItem icon={<LucideBarChart3 size={15} />} label="分析レポート"  id="analytics"    activeTab={activeTab} collapsed={false} onClick={onTabChange} />
         </>)}
 
         {isManagerLike && (<>

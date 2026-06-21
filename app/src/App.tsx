@@ -80,13 +80,14 @@ import WorkspacePage    from '@/pages/WorkspacePage';
 import ReportPage       from '@/pages/ReportPage';
 import GoalPage         from '@/pages/GoalPage';
 import DailyReportPage  from '@/pages/DailyReportPage';
+import AnalyticsPage    from '@/pages/AnalyticsPage';
 import MasterPage        from '@/pages/MasterPage';
 import ProfileModal      from '@/components/ProfileModal';
 import VendorQuotePage  from '@/pages/VendorQuotePage';
 import PipelinePage     from '@/pages/PipelinePage';
 import type { WorkspaceSection } from '@/types';
 
-type ActiveTab = 'dashboard' | 'calendar' | 'database' | 'pipeline' | 'workspace' | 'report' | 'goals' | 'daily_report' | 'masters';
+type ActiveTab = 'dashboard' | 'calendar' | 'database' | 'pipeline' | 'workspace' | 'report' | 'goals' | 'daily_report' | 'analytics' | 'masters';
 
 export default function App() {
   const { user, loading: authLoading } = useAuth();
@@ -466,6 +467,7 @@ export default function App() {
             <StaffDashboard
               customers={customers} projects={projects} schedules={schedules}
               contracts={contracts} vendorQuoteRequests={vendorQuoteRequests}
+              goals={goals}
               selectedStaff={selectedStaff} onShowToast={showToast}
               notifications={notifications} currentUserId={uid ?? null}
               onNotificationRead={(id) => uid && markNotificationRead(id, uid)}
@@ -538,7 +540,7 @@ export default function App() {
             }}
           />
         )}
-        {activeTab === 'goals' && viewingAsStaff && (
+        {activeTab === 'goals' && (
           <GoalPage
             goals={goals} projects={projects} schedules={schedules}
             selectedStaff={selectedStaff} onShowToast={showToast}
@@ -563,6 +565,12 @@ export default function App() {
             staffList={staffList}
             currentRole={currentRole} selectedStaff={selectedStaff}
             onShowToast={showToast}
+          />
+        )}
+        {activeTab === 'analytics' && isManagerLike && !viewingAsStaff && (
+          <AnalyticsPage
+            projects={projects} customers={customers} contracts={contracts}
+            staffList={staffList}
           />
         )}
         {activeTab === 'masters' && isManagerLike && (

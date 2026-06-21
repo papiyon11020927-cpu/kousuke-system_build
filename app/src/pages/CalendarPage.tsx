@@ -742,7 +742,7 @@ export default function CalendarPage({
         <div>
           <h2 className="text-base font-extrabold text-white flex items-center gap-2">
             <LucideCalendar className="text-[#C5A059]" size={18} />
-            案件連動型カレンダー
+スケジュール
           </h2>
           <p className="text-[11px] text-gray-500 mt-0.5">
             {view === 'month' ? 'クリックで予定作成' : 'ドラッグ(PC) / 長押し+スワイプ(モバイル) で時間帯指定'}

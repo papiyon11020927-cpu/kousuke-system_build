@@ -1,12 +1,13 @@
 ﻿import { useMemo, useState } from 'react';
 import {
-  LucideTrendingUp, LucideMapPin, LucideFileText,
+  LucideTrendingUp, LucideMapPin, LucideFileText, LucideTarget,
   LucideSparkles, LucideArrowRight, LucideBell, LucideCheckCheck,
   LucideAlertCircle, LucideAlertTriangle, LucideClock, LucideBuilding2, LucideUsers,
   LucideCircleAlert, LucideCheck,
 } from 'lucide-react';
-import type { Customer, Project, Schedule, AppNotification, Contract, VendorQuoteRequest, DashboardTodo } from '@/types';
+import type { Customer, Project, Schedule, AppNotification, Contract, VendorQuoteRequest, DashboardTodo, MonthlyGoal } from '@/types';
 import { calcKpi, calcPriorityRecs, calcDashboardTodos, type PriorityRec } from '@/services/kpiService';
+import { goalId as makeGoalId } from '@/services/goalService';
 
 type ActiveTab = 'dashboard' | 'calendar' | 'database' | 'goals' | 'report' | 'masters';
 
@@ -16,6 +17,7 @@ interface Props {
   schedules:           Schedule[];
   contracts:           Contract[];
   vendorQuoteRequests: VendorQuoteRequest[];
+  goals?:              MonthlyGoal[];
   selectedStaff:       string;
   onShowToast:         (msg: string) => void;
   notifications:           AppNotification[];
@@ -27,12 +29,22 @@ interface Props {
   hideBanners?:            boolean;
 }
 
-export default function StaffDashboard({ customers, projects, schedules, contracts, vendorQuoteRequests, selectedStaff, onShowToast, notifications, currentUserId, onNotificationRead, onNotificationClick, onTabChange, hideBanners = false }: Props) {
+export default function StaffDashboard({ customers, projects, schedules, contracts, vendorQuoteRequests, goals = [], selectedStaff, onShowToast, notifications, currentUserId, onNotificationRead, onNotificationClick, onTabChange, hideBanners = false }: Props) {
   const [showAllNotifs, setShowAllNotifs] = useState(false);
 
+  // 当月の登録済み目標（未登録ならハードコードの初期値にフォールバック）
+  const currentYearMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const registeredGoal = useMemo(
+    () => goals.find(g => g.goalId === makeGoalId(selectedStaff, currentYearMonth)),
+    [goals, selectedStaff, currentYearMonth],
+  );
+
   const kpi = useMemo(
-    () => calcKpi(selectedStaff, projects, schedules),
-    [selectedStaff, projects, schedules],
+    () => calcKpi(selectedStaff, projects, schedules, registeredGoal ? {
+      salesGoal: registeredGoal.salesGoal, profitGoal: registeredGoal.profitGoal,
+      surveyGoal: registeredGoal.surveyGoal, estimateGoal: registeredGoal.estimateGoal,
+    } : undefined),
+    [selectedStaff, projects, schedules, registeredGoal],
   );
 
   const recs = useMemo(
@@ -153,16 +165,31 @@ export default function StaffDashboard({ customers, projects, schedules, contrac
       {/* KPIボード */}
       <div className="bg-[#131F3F] border border-gray-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
         <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-[#C5A059] to-[#0B132B]" />
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-wrap justify-between items-center gap-2 mb-1">
           <h3 className="text-sm font-extrabold text-[#E6C687] tracking-wider flex items-center gap-2">
             <LucideTrendingUp size={16} />
             {selectedStaff} 今月の目標・KPI達成度
           </h3>
-          <span className="text-[11px] bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-            リアルタイム更新中
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+              リアルタイム更新中
+            </span>
+            <button
+              onClick={() => onTabChange('goals')}
+              className="text-[11px] bg-[#C5A059]/15 text-[#E6C687] border border-[#C5A059]/30 px-2.5 py-1 rounded-full hover:bg-[#C5A059]/25 transition flex items-center gap-1"
+            >
+              <LucideTarget size={11} /> 予算・目標を登録する
+            </button>
+          </div>
         </div>
+
+        {!registeredGoal && (
+          <p className="text-[11px] text-amber-300/80 mb-3 flex items-center gap-1">
+            <LucideAlertCircle size={11} />
+            {currentYearMonth} の目標が未登録のため、初期値（仮目標）を表示しています
+          </p>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <KpiBar

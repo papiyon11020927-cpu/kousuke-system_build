@@ -86,6 +86,11 @@ const ALL_STATUSES: ProjectStatus[] = [
   'lead', 'estimate', 'contract', 'construction', 'completed', 'settlement', 'closed', 'lost',
 ];
 
+/** 案件の工事種別カテゴリ（フリー入力ではなく選択式に固定し、分析レポートの集計軸として使う） */
+export const PROJECT_CATEGORIES = [
+  '外壁塗装', '屋根工事', 'リフォーム', '内装工事', '設備工事', '新築・増改築', 'その他',
+] as const;
+
 const PRIORITY: Record<ProjectStatus, number> = {
   construction: 0, settlement: 1, contract: 2, estimate: 3,
   lead: 4, completed: 5, closed: 6, lost: 7,
@@ -614,6 +619,7 @@ function AddProjectDialog({
   const [title,        setTitle]        = useState('');
   const [projectId,    setProjectId]    = useState(genId('P'));
   const [status,       setStatus]       = useState<ProjectStatus>('lead');
+  const [category,     setCategory]     = useState('');
   const [amount,       setAmount]       = useState('');
   const [budgetAmount, setBudgetAmount] = useState('');
   const [deadline,     setDeadline]     = useState('');
@@ -660,6 +666,7 @@ function AddProjectDialog({
         createdAt:    now,
         // スタッフが作成した場合は管理者承認待ち
         ...(isManagerLike ? {} : { projectApprovalStatus: 'needs_approval' as const, createdByRole: currentRole }),
+        ...(category             ? { category }                    : {}),
         ...(budgetNum            ? { budgetAmount: budgetNum }      : {}),
         ...(deadline             ? { deadline }                     : {}),
         ...(issue.trim()         ? { issue: issue.trim() }          : {}),
@@ -747,6 +754,16 @@ function AddProjectDialog({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* 工事種別カテゴリ */}
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">工事種別カテゴリ</label>
+              <select value={category} onChange={e => setCategory(e.target.value)}
+                className="w-full bg-[#0B132B] border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#C5A059]">
+                <option value="">未設定</option>
+                {PROJECT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
 
             {/* 確度 */}
@@ -855,6 +872,7 @@ function EditProjectDialog({
 }) {
   const [title,        setTitle]        = useState(project.title);
   const [status,       setStatus]       = useState<ProjectStatus>(project.status);
+  const [category,     setCategory]     = useState(project.category || '');
   const [amount,       setAmount]       = useState(String(project.amount || ''));
   const [budgetAmount, setBudgetAmount] = useState(String(project.budgetAmount || ''));
   const [deadline,     setDeadline]     = useState(project.deadline || '');
@@ -900,6 +918,7 @@ function EditProjectDialog({
         assignees:      assignees.length > 0 ? assignees : undefined,
         probability:    probNum,
         lastActivityAt: new Date().toISOString(),
+        category:       category || undefined,
         ...(budgetNum    ? { budgetAmount: budgetNum }  : {}),
         ...(deadline     ? { deadline }                 : {}),
         ...(issue.trim() ? { issue: issue.trim() }      : {}),
@@ -955,6 +974,15 @@ function EditProjectDialog({
                 );
               })}
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">工事種別カテゴリ</label>
+            <select value={category} onChange={e => setCategory(e.target.value)}
+              className="w-full bg-[#0B132B] border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#C5A059]">
+              <option value="">未設定</option>
+              {PROJECT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
 
           <div>
@@ -4427,6 +4455,11 @@ const ProjectCard = memo(function ProjectCard({
               {pendingApprovalCount > 0 && (
                 <span className="bg-yellow-900/60 text-yellow-300 text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                   <LucideClock size={9} /> {pendingApprovalCount}件承認待ち
+                </span>
+              )}
+              {project.category && (
+                <span className="bg-[#C5A059]/15 text-[#C5A059] border border-[#C5A059]/30 text-[10px] px-1.5 py-0.5 rounded-full">
+                  {project.category}
                 </span>
               )}
             </div>

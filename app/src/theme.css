@@ -128,6 +128,12 @@
 [data-theme="navy-white"] .text-white,
 [data-theme="mint-teal"]  .text-white         { color: var(--th-text)         !important; }
 
+[data-theme="navy-white"] .text-gray-100,
+[data-theme="mint-teal"]  .text-gray-100      { color: var(--th-text)         !important; }
+
+[data-theme="navy-white"] .text-gray-200,
+[data-theme="mint-teal"]  .text-gray-200      { color: color-mix(in srgb, var(--th-text) 92%, transparent) !important; }
+
 [data-theme="navy-white"] .text-gray-300,
 [data-theme="mint-teal"]  .text-gray-300      { color: color-mix(in srgb, var(--th-text) 88%, transparent) !important; }
 

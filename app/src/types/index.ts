@@ -41,6 +41,7 @@ export interface Project {
   assignee: string;        // 担当スタッフ名（後方互換・主担当）
   lastActivityAt: string;  // ISO 8601
   // ── 追加フィールド ──
+  category?: string;       // 工事種別カテゴリ（例: 外壁塗装、リフォーム）
   budgetAmount?: number;   // 顧客予算金額
   deadline?: string;       // 希望納期 (YYYY-MM-DD)
   issue?: string;          // 顧客課題メモ

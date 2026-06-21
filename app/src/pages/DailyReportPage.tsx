@@ -5,7 +5,7 @@ import {
   LucideChevronDown, LucideChevronUp, LucideRefreshCw,
 } from 'lucide-react';
 import type { Customer, DailyReport, InOutLog, Project, UserRole } from '@/types';
-import { createDailyReport } from '@/services/dailyReportService';
+import { createDailyReport, createTeamDailyReport, TEAM_REPORT_STAFF_NAME } from '@/services/dailyReportService';
 
 // ─────────────────────────────────────────────────────────────
 // ユーティリティ
@@ -243,6 +243,22 @@ export default function DailyReportPage({
     }
   };
 
+  // AI 全員サマリー生成（管理者向け：全スタッフの活動を1件に統合）
+  const handleGenerateTeam = async () => {
+    setGeneratingFor(TEAM_REPORT_STAFF_NAME);
+    try {
+      const entries = staffList.map(s => ({ staffName: s, logs: logsByStaff.get(s) ?? [] }));
+      await createTeamDailyReport(selectedDate, entries);
+      onShowToast('全員サマリーを生成しました');
+    } catch {
+      onShowToast('全員サマリーの生成に失敗しました');
+    } finally {
+      setGeneratingFor(null);
+    }
+  };
+
+  const teamReport = getReport(TEAM_REPORT_STAFF_NAME);
+
   const isToday = selectedDate === fmtDate(new Date());
 
   return (
@@ -289,6 +305,40 @@ export default function DailyReportPage({
       {/* ── 管理者ビュー ── */}
       {currentRole !== 'staff' && (
         <div className="space-y-3">
+
+          {/* AI 全員サマリー */}
+          <div className="bg-[#131F3F] border border-[#C5A059]/30 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-[#E6C687] flex items-center gap-1.5">
+                <LucideSparkles size={14} /> AI 全員サマリー
+              </h3>
+              <button
+                onClick={handleGenerateTeam}
+                disabled={generatingFor === TEAM_REPORT_STAFF_NAME || outLogsForDate.length === 0}
+                className="flex items-center gap-1.5 text-[11px] text-[#0A0F1D] bg-[#C5A059] hover:bg-[#E6C687] font-bold px-3 py-1.5 rounded-full transition disabled:opacity-40"
+              >
+                {generatingFor === TEAM_REPORT_STAFF_NAME
+                  ? <><LucideActivity size={11} className="animate-spin" /> 生成中...</>
+                  : teamReport
+                    ? <><LucideRefreshCw size={11} /> 再生成</>
+                    : <><LucideSparkles size={11} /> 生成する</>}
+              </button>
+            </div>
+            {teamReport ? (
+              <div className="bg-[#0B132B] border border-gray-700 rounded-lg p-3 text-sm text-gray-200 leading-relaxed">
+                {String(teamReport.summary ?? '')}
+                <div className="text-[10px] text-gray-500 mt-2 border-t border-gray-800 pt-2 flex items-center justify-between">
+                  <span>対象: {staffList.length}名 / 訪問 {teamReport.visitCount}件</span>
+                  <span>生成: {new Date(teamReport.generatedAt).toLocaleString('ja-JP')}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 italic">
+                {outLogsForDate.length === 0 ? 'この日の訪問記録がありません' : 'ボタンを押すと全スタッフの活動をAIが1件に要約します'}
+              </p>
+            )}
+          </div>
+
           {staffList.map(staffName => (
             <StaffDailyCard
               key={staffName}

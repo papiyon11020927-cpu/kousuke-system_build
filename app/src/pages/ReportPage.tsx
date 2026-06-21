@@ -13,6 +13,22 @@ import { analyzeReport }  from '@/services/aiService';
 import { saveProject }    from '@/services/projectService';
 import { saveSchedule }   from '@/services/scheduleService';
 
+/**
+ * 音声認識の自動再起動（沈黙タイムアウト後の再接続）の境界では、
+ * Chrome のマイクバッファに前セッション末尾の音声が残っていることがあり、
+ * 同じフレーズが再度確定テキストとして返ってくる場合がある。
+ * 既存テキストの末尾と新規チャンクの先頭が一致する分だけ取り除いて重複を防ぐ。
+ */
+function trimOverlap(existing: string, chunk: string, maxLen = 30): string {
+  const max = Math.min(existing.length, chunk.length, maxLen);
+  for (let len = max; len > 0; len--) {
+    if (existing.slice(-len) === chunk.slice(0, len)) {
+      return chunk.slice(len);
+    }
+  }
+  return chunk;
+}
+
 // ─── 案件ステータス定数（ReportPage 内共用） ───────────────────
 
 const PROJ_STATUSES: ProjectStatus[] = [
@@ -595,7 +611,9 @@ export default function ReportPage({
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           if (e.results[i].isFinal && !processedIdx.has(i)) {
-            sessionFinals += e.results[i][0].transcript;
+            const chunk = e.results[i][0].transcript;
+            const currentTotal = capturedBase + accumulated + sessionFinals;
+            sessionFinals += trimOverlap(currentTotal, chunk);
             processedIdx.add(i);
           } else if (!e.results[i].isFinal) {
             interim += e.results[i][0].transcript;
