@@ -9,7 +9,7 @@ import {
   LucideInfo, LucideClock, LucideClipboardCheck, LucideRefreshCw, LucideTrendingUp,
   LucideLink, LucideCopy, LucideBuilding2, LucideSend, LucideChevronLeft,
   LucideMic, LucideSquare, LucideUserMinus, LucideAlertTriangle, LucideUsers,
-  LucideMapPin,
+  LucideMapPin, LucideUpload,
 } from 'lucide-react';
 import type {
   Customer, Project, InOutLog, ProjectStatus, UserRole,
@@ -29,6 +29,7 @@ import {
   saveContract,
   submitContractForApproval, approveContract, rejectContract,
   revertContractToDraft, deleteContract, updatePaymentTerms, voidContract,
+  markContractPaperSigned,
 } from '@/services/contractService';
 import {
   generateEstimateHtml, generateContractHtml, openPrintPreview,
@@ -88,7 +89,7 @@ const ALL_STATUSES: ProjectStatus[] = [
 
 /** 案件の工事種別カテゴリ（フリー入力ではなく選択式に固定し、分析レポートの集計軸として使う） */
 export const PROJECT_CATEGORIES = [
-  '外壁塗装', '屋根工事', 'リフォーム', '内装工事', '設備工事', '新築・増改築', 'その他',
+  '外壁塗装', '屋根工事', '太陽光', 'リフォーム', '内装工事', '設備工事', '新築・増改築', 'その他',
 ] as const;
 
 const PRIORITY: Record<ProjectStatus, number> = {
@@ -3110,6 +3111,111 @@ function SendContractButton({ ct, customer }: { ct: Contract; customer: Customer
 }
 
 // ─────────────────────────────────────────────────────────────
+// 書面署名アップロードダイアログ
+// （高齢のお客様等、紙の契約書にご署名いただいた場合の代替フロー）
+// ─────────────────────────────────────────────────────────────
+
+function PaperSignDialog({ ct, currentUserName, onClose, onDone }: {
+  ct:              Contract;
+  currentUserName: string;
+  onClose:         () => void;
+  onDone:          (msg: string) => void;
+}) {
+  const [files,   setFiles]   = useState<File[]>([]);
+  const [note,    setNote]    = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState('');
+
+  const handleFiles = (list: FileList | null) => {
+    if (!list) return;
+    const valid = Array.from(list).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+    if (valid.length !== list.length) setError('画像（JPEG/PNG）またはPDFのみアップロードできます');
+    else setError('');
+    setFiles(prev => [...prev, ...valid]);
+  };
+
+  const removeFile = (idx: number) => setFiles(prev => prev.filter((_, i) => i !== idx));
+
+  const handleSubmit = async () => {
+    if (files.length === 0) { setError('署名済み契約書の写真またはPDFを1件以上アップロードしてください'); return; }
+    setError('');
+    setLoading(true);
+    try {
+      await markContractPaperSigned(ct.contractId, files, currentUserName, note.trim() || undefined);
+      onDone('書面署名を登録しました');
+      onClose();
+    } catch (err: any) {
+      setError(err.code?.includes('permission-denied')
+        ? '権限エラーです（Firestoreルールを確認）'
+        : `登録に失敗しました（${err.code ?? err.message ?? 'unknown'}）`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-[#111A35] border border-[#C5A059]/30 rounded-xl w-full max-w-md shadow-2xl">
+        <div className="bg-[#0B132B] px-5 py-3 border-b border-[#C5A059]/20 flex justify-between items-center rounded-t-xl">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <LucideUpload size={15} className="text-[#C5A059]" />
+            書面署名を登録
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><LucideX size={16} /></button>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-gray-400">
+            紙の契約書にご署名いただいた場合、署名済みページの写真またはPDFをアップロードしてください。
+            登録すると電子署名と同様に契約が「署名済み」として確定します。
+          </p>
+
+          <label className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-gray-700 hover:border-[#C5A059]/60 rounded-lg py-6 cursor-pointer transition-colors">
+            <LucideCamera size={20} className="text-gray-500" />
+            <span className="text-xs text-gray-400">写真（JPEG/PNG）またはPDFを選択</span>
+            <input type="file" accept="image/*,application/pdf" multiple className="hidden"
+              onChange={e => handleFiles(e.target.files)} />
+          </label>
+
+          {files.length > 0 && (
+            <div className="space-y-1.5">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center justify-between bg-[#0B132B] border border-gray-700 rounded-lg px-3 py-1.5">
+                  <span className="text-xs text-gray-300 truncate flex items-center gap-1.5">
+                    {f.type === 'application/pdf' ? <LucideFileText size={11} /> : <LucideCamera size={11} />}
+                    {f.name}
+                  </span>
+                  <button type="button" onClick={() => removeFile(i)} className="text-gray-500 hover:text-red-400 shrink-0">
+                    <LucideX size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
+            placeholder="メモ（任意）— 例: ご自宅にて署名いただきました"
+            className="w-full bg-[#0B132B] border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#C5A059] resize-none" />
+
+          {error && <div className="bg-red-950/40 border border-red-700/40 rounded-lg px-3 py-2 text-xs text-red-400">{error}</div>}
+
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-gray-700 text-gray-400 text-sm py-2 rounded-lg hover:border-gray-500 hover:text-white transition-colors">
+              キャンセル
+            </button>
+            <button type="button" onClick={handleSubmit} disabled={loading}
+              className="flex-1 bg-[#C5A059] hover:bg-[#E6C687] text-[#0A0F1D] text-sm font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors disabled:opacity-50">
+              {loading ? <><LucideActivity size={14} className="animate-spin" /> 登録中...</> : '署名済みとして登録'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // 契約書カード（ContractManageModal 内で1件ずつ表示）
 // EstimateCard と同じパターンで分離し、React DOM 整合性を保つ
 // ─────────────────────────────────────────────────────────────
@@ -3132,6 +3238,8 @@ function ContractCard({
   const [payingTermIdx,   setPayingTermIdx]    = useState<number | null>(null);
   const [payDateInput,    setPayDateInput]     = useState('');
   const [vendorOrderIdx,  setVendorOrderIdx]   = useState<number | null>(null); // 注文書送付ダイアログ対象インデックス
+  const [showPaperSign,   setShowPaperSign]    = useState(false);
+  const [urlCopied,       setUrlCopied]        = useState(false);
 
   // この契約書に紐づく見積書の業者コスト明細
   const linkedEstimate = estimates?.find(e => e.estimateId === ct.estimateId);
@@ -3477,7 +3585,7 @@ function ContractCard({
         {/* サイン取得済み */}
         <div className="flex items-center gap-2" style={{ display: ct.customerSignature ? 'flex' : 'none' }}>
           <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-            <LucideCheck size={10} /> お客様サイン取得済み
+            <LucideCheck size={10} /> {ct.signMethod === 'paper' ? '書面署名 取得済み' : 'お客様サイン取得済み'}
           </span>
           <img
             src={ct.customerSignature ?? ''}
@@ -3486,6 +3594,23 @@ function ContractCard({
             style={{ display: ct.customerSignature ? 'block' : 'none' }}
           />
         </div>
+        {/* 書面署名の添付ファイル（写真・PDF） */}
+        {ct.signMethod === 'paper' && ct.paperSignature && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {ct.paperSignature.photoUrls.map((url, i) => (
+              <a key={`p${i}`} href={url} target="_blank" rel="noopener noreferrer"
+                className="text-[10px] text-[#C5A059] hover:text-[#E6C687] border border-[#C5A059]/30 rounded px-1.5 py-0.5 flex items-center gap-1">
+                <LucideCamera size={9} /> 写真{i + 1}
+              </a>
+            ))}
+            {ct.paperSignature.docUrls.map((d, i) => (
+              <a key={`d${i}`} href={d.url} target="_blank" rel="noopener noreferrer"
+                className="text-[10px] text-[#C5A059] hover:text-[#E6C687] border border-[#C5A059]/30 rounded px-1.5 py-0.5 flex items-center gap-1">
+                <LucideFileText size={9} /> {d.name}
+              </a>
+            ))}
+          </div>
+        )}
         {/* 署名URL — 別タブで開く軽量ページ（アプリ外）*/}
         <div style={{ display: ct.customerSignature ? 'none' : 'block' }} className="space-y-1">
           <button
@@ -3496,11 +3621,31 @@ function ContractCard({
           <button
             onClick={() => {
               navigator.clipboard.writeText(`${window.location.origin}/?customerSign=${ct.contractId}`);
+              setUrlCopied(true);
+              onShowToast('署名URLをコピーしました');
+              setTimeout(() => setUrlCopied(false), 2000);
             }}
-            className="flex items-center gap-1.5 text-[10px] text-gray-500 hover:text-gray-300 w-full justify-center py-0.5 transition-colors">
-            <LucideCopy size={10} /> 署名URLをコピー
+            className={`flex items-center gap-1.5 text-[10px] w-full justify-center py-0.5 transition-colors ${
+              urlCopied ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'
+            }`}>
+            {urlCopied
+              ? <><LucideCheck size={10} /> コピーしました</>
+              : <><LucideCopy size={10} /> 署名URLをコピー</>}
+          </button>
+          <button
+            onClick={() => setShowPaperSign(true)}
+            className="flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-[#E6C687] border border-dashed border-gray-600 hover:border-[#C5A059]/60 rounded-lg px-2.5 py-1.5 transition-colors w-full justify-center font-bold">
+            <LucideUpload size={11} /> 書面で署名済み（写真/PDFをアップロード）
           </button>
         </div>
+        {showPaperSign && (
+          <PaperSignDialog
+            ct={ct}
+            currentUserName={currentUserName}
+            onClose={() => setShowPaperSign(false)}
+            onDone={onShowToast}
+          />
+        )}
         <SendContractButton ct={ct} customer={customer} />
 
         {/* 業者への注文書（見積書に業者コストが記載されている場合） */}
@@ -3979,6 +4124,95 @@ function UpcomingScheduleSection({ project, customer, schedules, staffList, onSh
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// 訪問ログ タイムライン（顧客カルテ・案件詳細で共通利用）
+// ─────────────────────────────────────────────────────────────
+
+function VisitLogTimeline({ logs, expandedPhotos, onTogglePhotos, projects }: {
+  logs: InOutLog[];
+  expandedPhotos: Set<string>;
+  onTogglePhotos: (logId: string) => void;
+  /** 渡された場合、各ログにどの案件への訪問かを表示する（顧客カルテ等、複数案件をまとめて表示する場面で使用） */
+  projects?: Project[];
+}) {
+  if (logs.length === 0) {
+    return <p className="text-xs text-gray-500 italic">まだ訪問履歴はありません。</p>;
+  }
+  return (
+    <div className="relative border-l border-gray-700 pl-4 ml-2 space-y-4">
+      {logs.map(log => {
+        const project = projects?.find(p => p.projectId === log.projectId);
+        return (
+        <div key={log.logId} className="relative">
+          <span className={`absolute -left-[21px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-[#111A35] ${log.type === 'in' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+          <div className="bg-[#0B132B] p-3 rounded border border-gray-800 text-xs">
+            <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+              <span className="font-bold">
+                {log.type === 'in' ? <span className="text-emerald-400">🟢 到着 (IN)</span> : <span className="text-rose-400">🔴 退室 (OUT)</span>}
+                {' '}— {log.userName}
+                {log.duration != null && <span className="text-gray-500 ml-2">({Math.floor(log.duration / 60)}分{log.duration % 60}秒)</span>}
+              </span>
+              <span>{new Date(log.timestamp).toLocaleString('ja-JP')}</span>
+            </div>
+            {projects && (
+              <div className="mb-1.5">
+                <span className="inline-flex items-center gap-1 text-[10px] text-[#C5A059] bg-[#C5A059]/10 border border-[#C5A059]/30 rounded px-1.5 py-0.5">
+                  <LucideFolder size={9} /> {project?.title ?? '案件不明'}
+                </span>
+              </div>
+            )}
+            {log.structuredData && typeof log.structuredData === 'object' ? (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {([['顧客の課題', log.structuredData.customerIssue], ['キーマンの反応', log.structuredData.keymanReaction], ['予算感', log.structuredData.budget], ['次回アクション', log.structuredData.nextAction]] as [string, unknown][]).map(([label, val]) => (
+                  val != null && val !== '' ? (
+                    <div key={label} className="bg-[#111A35] p-2 rounded border border-gray-800">
+                      <span className="text-[9px] text-gray-500 block">{label}</span>
+                      <span className="text-white leading-snug">{String(val)}</span>
+                    </div>
+                  ) : null
+                ))}
+              </div>
+            ) : log.voiceText ? (
+              <p className="text-gray-300 font-mono whitespace-pre-wrap bg-[#111A35] p-2 rounded mt-1.5 border border-gray-800 leading-relaxed">{log.voiceText}</p>
+            ) : (
+              log.location ? null : <p className="text-gray-500 italic text-xs">報告内容なし</p>
+            )}
+            {/* GPS地図ボタン */}
+            {log.location && (
+              <a
+                href={`https://maps.google.com/?q=${log.location.lat},${log.location.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[11px] text-blue-400 hover:text-blue-300 bg-blue-950/30 border border-blue-700/30 rounded-lg px-2.5 py-1 mt-1 transition"
+              >
+                <LucideMapPin size={11} /> 訪問地点を地図で確認
+              </a>
+            )}
+            {log.photoUrls && log.photoUrls.length > 0 && (
+              <div className="mt-2">
+                <button onClick={() => onTogglePhotos(log.logId)} className="flex items-center gap-1.5 text-[10px] text-[#C5A059] hover:text-[#E6C687] transition-colors">
+                  <LucideCamera size={11} /> 現場写真 {log.photoUrls.length}枚
+                  {expandedPhotos.has(log.logId) ? <LucideChevronUp size={10} /> : <LucideChevronDown size={10} />}
+                </button>
+                {expandedPhotos.has(log.logId) && (
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {log.photoUrls.map((url, pi) => (
+                      <a key={pi} href={url} target="_blank" rel="noopener noreferrer">
+                        <img src={url} alt={`写真${pi + 1}`} className="h-16 w-16 object-cover rounded border border-gray-700 hover:brightness-110 transition-colors" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ProjectWorkspaceModal({
   project, customer,
   estimates, allEstimates,
@@ -4027,6 +4261,10 @@ export function ProjectWorkspaceModal({
   // 概要タブ: ステータス変更
   const [statusChanging,   setStatusChanging]   = useState(false);
   const [lostReasonTarget, setLostReasonTarget] = useState<ProjectStatus | null>(null);
+  // 概要タブ: 活動履歴の写真展開状態
+  const [expandedPhotos, setExpandedPhotos] = useState<Set<string>>(new Set());
+  const togglePhotos = (logId: string) =>
+    setExpandedPhotos(prev => { const n = new Set(prev); n.has(logId) ? n.delete(logId) : n.add(logId); return n; });
 
   const handleStatusChange = (s: ProjectStatus) => {
     // ステータス遷移バリデーション（estimates/contracts はこの案件分のみ渡す）
@@ -4335,7 +4573,7 @@ export function ProjectWorkspaceModal({
               onShowToast={onShowToast}
             />
 
-            {/* 活動履歴（全件）*/}
+            {/* 活動履歴（全件）— 顧客カルテの訪問ログと同じ要約表示 */}
             <div className="bg-[#111A35] border border-gray-800 rounded-xl overflow-hidden">
               <div className="px-4 py-2.5 border-b border-gray-800 flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-400 flex items-center gap-1.5">
@@ -4345,28 +4583,9 @@ export function ProjectWorkspaceModal({
                   <span className="text-[10px] text-gray-600">{projectLogs.length}件</span>
                 )}
               </div>
-              {projectLogs.length === 0 ? (
-                <div className="px-4 py-6 text-center text-xs text-gray-600">まだ活動履歴はありません</div>
-              ) : (
-                <div className="divide-y divide-gray-800/60 max-h-64 overflow-y-auto">
-                  {projectLogs.map(log => (
-                    <div key={log.logId} className="px-4 py-2.5 flex items-start gap-2.5">
-                      <span className={`shrink-0 mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded ${log.type === 'in' ? 'bg-emerald-900/60 text-emerald-300' : 'bg-red-900/40 text-red-400'}`}>
-                        {log.type === 'in' ? 'IN' : 'OUT'}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-semibold text-white">{log.userName}</span>
-                          <span className="text-[10px] text-gray-600">
-                            {new Date(log.timestamp).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        {log.voiceText && <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{log.voiceText}</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="p-4 max-h-96 overflow-y-auto">
+                <VisitLogTimeline logs={projectLogs} expandedPhotos={expandedPhotos} onTogglePhotos={togglePhotos} />
+              </div>
             </div>
           </div>
         )}
@@ -5085,69 +5304,7 @@ function CustomerModal({
                 </div>
               )}
 
-              <div className="relative border-l border-gray-700 pl-4 ml-2 space-y-4">
-              {sortedLogs.length === 0 ? (
-                <p className="text-xs text-gray-500 italic">まだ訪問履歴はありません。</p>
-              ) : sortedLogs.map(log => (
-                <div key={log.logId} className="relative">
-                  <span className={`absolute -left-[21px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-[#111A35] ${log.type === 'in' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                  <div className="bg-[#0B132B] p-3 rounded border border-gray-800 text-xs">
-                    <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-                      <span className="font-bold">
-                        {log.type === 'in' ? <span className="text-emerald-400">🟢 到着 (IN)</span> : <span className="text-rose-400">🔴 退室 (OUT)</span>}
-                        {' '}— {log.userName}
-                        {log.duration != null && <span className="text-gray-500 ml-2">({Math.floor(log.duration / 60)}分{log.duration % 60}秒)</span>}
-                      </span>
-                      <span>{new Date(log.timestamp).toLocaleString('ja-JP')}</span>
-                    </div>
-                    {log.structuredData && typeof log.structuredData === 'object' ? (
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        {([['顧客の課題', log.structuredData.customerIssue], ['キーマンの反応', log.structuredData.keymanReaction], ['予算感', log.structuredData.budget], ['次回アクション', log.structuredData.nextAction]] as [string, unknown][]).map(([label, val]) => (
-                          val != null && val !== '' ? (
-                            <div key={label} className="bg-[#111A35] p-2 rounded border border-gray-800">
-                              <span className="text-[9px] text-gray-500 block">{label}</span>
-                              <span className="text-white leading-snug">{String(val)}</span>
-                            </div>
-                          ) : null
-                        ))}
-                      </div>
-                    ) : log.voiceText ? (
-                      <p className="text-gray-300 font-mono whitespace-pre-wrap bg-[#111A35] p-2 rounded mt-1.5 border border-gray-800 leading-relaxed">{log.voiceText}</p>
-                    ) : (
-                      log.location ? null : <p className="text-gray-500 italic text-xs">報告内容なし</p>
-                    )}
-                    {/* GPS地図ボタン */}
-                    {log.location && (
-                      <a
-                        href={`https://maps.google.com/?q=${log.location.lat},${log.location.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[11px] text-blue-400 hover:text-blue-300 bg-blue-950/30 border border-blue-700/30 rounded-lg px-2.5 py-1 mt-1 transition"
-                      >
-                        <LucideMapPin size={11} /> 訪問地点を地図で確認
-                      </a>
-                    )}
-                    {log.photoUrls && log.photoUrls.length > 0 && (
-                      <div className="mt-2">
-                        <button onClick={() => togglePhotos(log.logId)} className="flex items-center gap-1.5 text-[10px] text-[#C5A059] hover:text-[#E6C687] transition-colors">
-                          <LucideCamera size={11} /> 現場写真 {log.photoUrls.length}枚
-                          {expandedPhotos.has(log.logId) ? <LucideChevronUp size={10} /> : <LucideChevronDown size={10} />}
-                        </button>
-                        {expandedPhotos.has(log.logId) && (
-                          <div className="mt-1.5 flex flex-wrap gap-2">
-                            {log.photoUrls.map((url, pi) => (
-                              <a key={pi} href={url} target="_blank" rel="noopener noreferrer">
-                                <img src={url} alt={`写真${pi + 1}`} className="h-16 w-16 object-cover rounded border border-gray-700 hover:brightness-110 transition-colors" />
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              </div>
+              <VisitLogTimeline logs={sortedLogs} expandedPhotos={expandedPhotos} onTogglePhotos={togglePhotos} projects={projects} />
             </div>
           )}
         </div>

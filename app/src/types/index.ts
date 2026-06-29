@@ -235,9 +235,18 @@ export interface Contract {
   approvalComment?:       string;
   totalAmount:            number;   // 見積書から自動反映
   paymentTerms:           PaymentTerm[];
-  customerSignature?:     string;   // base64 PNG
+  customerSignature?:     string;   // base64 PNG（書面署名の場合はスタンプ画像）
   signatureAt?:           string;
   signedByCustomer:       boolean;
+  signMethod?:            'electronic' | 'paper';  // 署名方法（未設定=electronic扱い・後方互換）
+  /** 書面署名の場合：署名済み契約書の写真・PDFアップロード記録 */
+  paperSignature?: {
+    photoUrls:  string[];
+    docUrls:    { name: string; url: string; sizeMb: number }[];
+    note?:      string;
+    uploadedBy: string;
+    uploadedAt: string;
+  };
   staffName:              string;
   constructionStartDate?: string;
   constructionEndDate?:   string;

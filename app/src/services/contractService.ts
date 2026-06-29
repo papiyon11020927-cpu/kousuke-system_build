@@ -2,6 +2,7 @@ import { doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField } from 'firebase
 import { httpsCallableFromURL } from 'firebase/functions';
 import { db, APP_ID, fbFunctions } from '@/firebase/config';
 import type { Contract, PaymentTerm } from '@/types';
+import { uploadVendorPhoto, uploadVendorDoc } from './vendorQuoteService';
 
 const ref = (id: string) => doc(db, 'artifacts', APP_ID, 'public', 'data', 'contracts', id);
 
@@ -51,6 +52,61 @@ export const signCustomerContract = async (
   signatureDataUrl: string,
 ): Promise<void> => {
   await signCustomerContractFn({ contractId, signatureDataUrl });
+};
+
+/** 「書面で署名済み」のスタンプ画像を生成（電子署名と同じ customerSignature 欄に格納する） */
+const buildPaperStampDataUrl = (uploadedBy: string, dateLabel: string): string => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 360; canvas.height = 120;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#C5A059';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText('書面署名 済', canvas.width / 2, 52);
+  ctx.font = '13px sans-serif';
+  ctx.fillText(`記録: ${dateLabel} / ${uploadedBy}`, canvas.width / 2, 80);
+  return canvas.toDataURL('image/png');
+};
+
+/**
+ * お年寄り等、紙の契約書に署名いただいた場合の登録フロー。
+ * 署名済み契約書の写真・PDFをアップロードし、電子署名と同じステータス更新
+ * （契約 status: signed・案件ステータス反映・受注金額の積算）を Cloud Function 経由で実行する。
+ */
+export const markContractPaperSigned = async (
+  contractId: string,
+  files: File[],
+  uploadedBy: string,
+  note?: string,
+): Promise<void> => {
+  const folder = `artifacts/${APP_ID}/contract_paper_signatures/${contractId}`;
+  const photoFiles = files.filter(f => f.type.startsWith('image/'));
+  const docFiles    = files.filter(f => f.type === 'application/pdf');
+
+  const photoUrls = await Promise.all(photoFiles.map((f, i) => uploadVendorPhoto(f, folder, i)));
+  const docUrls   = await Promise.all(docFiles.map(f => uploadVendorDoc(f, folder)));
+
+  const now = new Date().toISOString();
+  const stampDataUrl = buildPaperStampDataUrl(uploadedBy, now.slice(0, 10));
+
+  // 既存の signCustomerContract（Cloud Function）を再利用してステータス・受注金額反映を統一する
+  await signCustomerContractFn({ contractId, signatureDataUrl: stampDataUrl });
+
+  await updateDoc(ref(contractId), deepStrip({
+    signMethod:     'paper',
+    paperSignature: {
+      photoUrls, docUrls,
+      note: note || undefined,
+      uploadedBy,
+      uploadedAt: now,
+    },
+    updatedAt: now,
+  }));
 };
 
 export const submitContractForApproval = async (contractId: string): Promise<void> => {
