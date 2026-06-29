@@ -17,6 +17,11 @@ export const updateUserTheme = async (
   await updateDoc(userRef(userId), { theme, updatedAt: new Date().toISOString() });
 };
 
+/** 初回オンボーディング・チュートリアルの既読フラグを更新 */
+export const markTutorialSeen = async (userId: string): Promise<void> => {
+  await updateDoc(userRef(userId), { hasSeenTutorial: true, updatedAt: new Date().toISOString() });
+};
+
 /** メール通知設定を更新 */
 export const updateNotificationSettings = async (
   userId:   string,

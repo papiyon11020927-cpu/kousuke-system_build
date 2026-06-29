@@ -122,6 +122,7 @@ export interface AppUser {
   notificationSettings?:  NotificationSettings;  // 未設定時は全ON扱い
   theme?:                 ColorTheme;
   createdAt?:             string;
+  hasSeenTutorial?:       boolean;
 }
 
 // --- アプリ内通知 ---

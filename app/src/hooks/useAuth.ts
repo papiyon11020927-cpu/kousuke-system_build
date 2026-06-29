@@ -11,6 +11,7 @@ export interface AuthUser {
   role:                 AppUser['role'];
   notificationSettings?: NotificationSettings;
   theme?:               ColorTheme;
+  hasSeenTutorial?:     boolean;
 }
 
 export interface UseAuthReturn {
@@ -55,6 +56,7 @@ export function useAuth(): UseAuthReturn {
               role:                 data.role,
               notificationSettings: data.notificationSettings,
               theme:                data.theme,
+              hasSeenTutorial:      data.hasSeenTutorial,
             });
           } else {
             // 認証済みだがプロフィール未作成（セットアップ中の過渡状態）

@@ -5,7 +5,7 @@ import {
   LucideSettings, LucideClipboardList, LucideBuilding2,
   LucideLogOut, LucideChevronDown, LucideChevronRight,
   LucideChevronLeft, LucideMenu, LucidePalette, LucideUserCircle,
-  LucidePencil, LucideShield, LucideBarChart3,
+  LucidePencil, LucideShield, LucideBarChart3, LucideHelpCircle,
 } from 'lucide-react';
 import type { UserRole, ColorTheme, MasterSubTab } from '@/types';
 import type { AuthUser } from '@/hooks/useAuth';
@@ -14,7 +14,7 @@ import type { AuthUser } from '@/hooks/useAuth';
 type ActiveTab =
   | 'dashboard' | 'calendar' | 'database'
   | 'pipeline'  | 'workspace' | 'report' | 'goals'
-  | 'daily_report' | 'analytics' | 'masters';
+  | 'daily_report' | 'analytics' | 'masters' | 'help';
 
 export interface SidebarProps {
   activeTab:              ActiveTab;
@@ -254,6 +254,9 @@ export default function Sidebar({
             </>
           )}
         </>)}
+
+        <SectionLabel label="ヘルプ" collapsed={collapsed} />
+        <NavItem icon={<LucideHelpCircle size={15} />} label="ヘルプ／チュートリアル" id="help" activeTab={activeTab} collapsed={collapsed} onClick={handleTabClick} />
       </nav>
 
       {/* ─ ユーザーエリア ─ */}
@@ -548,6 +551,9 @@ function DrawerNav({
             </div>
           )}
         </>)}
+
+        <SectionLabel label="ヘルプ" collapsed={false} />
+        <NavItem icon={<LucideHelpCircle size={15} />} label="ヘルプ／チュートリアル" id="help" activeTab={activeTab} collapsed={false} onClick={onTabChange} />
       </nav>
 
       {/* ユーザーエリア */}

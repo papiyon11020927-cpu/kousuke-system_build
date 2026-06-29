@@ -85,9 +85,12 @@ import MasterPage        from '@/pages/MasterPage';
 import ProfileModal      from '@/components/ProfileModal';
 import VendorQuotePage  from '@/pages/VendorQuotePage';
 import PipelinePage     from '@/pages/PipelinePage';
+import HelpPage         from '@/pages/HelpPage';
+import TutorialOnboardingModal from '@/components/TutorialOnboardingModal';
+import { markTutorialSeen } from '@/services/userService';
 import type { WorkspaceSection } from '@/types';
 
-type ActiveTab = 'dashboard' | 'calendar' | 'database' | 'pipeline' | 'workspace' | 'report' | 'goals' | 'daily_report' | 'analytics' | 'masters';
+type ActiveTab = 'dashboard' | 'calendar' | 'database' | 'pipeline' | 'workspace' | 'report' | 'goals' | 'daily_report' | 'analytics' | 'masters' | 'help';
 
 export default function App() {
   const { user, loading: authLoading } = useAuth();
@@ -585,6 +588,7 @@ export default function App() {
             initialSubTab={masterSubTab}
           />
         )}
+        {activeTab === 'help' && <HelpPage />}
       </AppErrorBoundary>
         </main>
       </div>{/* ── ボディ終了 ── */}
@@ -625,6 +629,14 @@ export default function App() {
           userId={uid ?? ''}
           onClose={() => setShowProfileModal(false)}
           onShowToast={showToast}
+        />
+      )}
+
+      {/* ─── 初回オンボーディング（チュートリアル）モーダル ─── */}
+      {uid && !user.hasSeenTutorial && (
+        <TutorialOnboardingModal
+          displayName={user.displayName}
+          onFinish={() => { markTutorialSeen(uid).catch(console.error); }}
         />
       )}
     </div>
