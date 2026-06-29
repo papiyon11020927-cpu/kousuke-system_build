@@ -41,6 +41,12 @@ jobs:
         run: npm install -g firebase-tools@15.19.0
         # バージョン固定: 15.20+ は Gen1 関数への cpu 設定を拒否するため
 
+      - name: Google 認証（サービスアカウント）
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Firebase にデプロイ（Hosting + Storage + Firestore ルール）
-        run: firebase deploy --only hosting,storage,firestore:rules --token ${{ secrets.FIREBASE_TOKEN }}
+        run: firebase deploy --only hosting,storage,firestore:rules --project kousuke-system-build
         # Functions は変更時のみ手動デプロイ: firebase deploy --only functions
+        # 認証は GOOGLE_APPLICATION_CREDENTIALS（google-github-actions/auth が設定）を使用
